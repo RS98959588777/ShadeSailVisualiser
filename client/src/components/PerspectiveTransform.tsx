@@ -226,6 +226,20 @@ export class PerspectiveTransform {
     }
   }
 
+  public applyManualTilt(degrees: number): void {
+    this.object.set({
+      skewX: degrees
+    });
+    this.canvas.renderAll();
+  }
+
+  public applyManualPerspective(degrees: number): void {
+    this.object.set({
+      skewY: degrees
+    });
+    this.canvas.renderAll();
+  }
+
   public getCurrentSettings(): PerspectiveSettings {
     const corners = this.anchorControls.map(anchor => ({
       x: anchor.left!,

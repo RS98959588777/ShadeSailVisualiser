@@ -196,12 +196,16 @@ export default function ControlPanel({
               tiltValue={tiltValue}
               onTiltChange={(value) => {
                 setTiltValue(value);
-                // Apply tilt manually if needed
+                if (perspectiveTransform) {
+                  perspectiveTransform.applyManualTilt(value);
+                }
               }}
               perspectiveValue={perspectiveValue}
               onPerspectiveChange={(value) => {
                 setPerspectiveValue(value);
-                // Apply perspective manually if needed
+                if (perspectiveTransform) {
+                  perspectiveTransform.applyManualPerspective(value);
+                }
               }}
               isAnchorMode={isAnchorMode}
             />
