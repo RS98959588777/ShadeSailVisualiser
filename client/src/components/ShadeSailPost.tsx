@@ -248,7 +248,7 @@ export class PostManager {
       const postGroup = post.getPost();
       if (postGroup) {
         // Bring to front for better visibility if overlapping
-        postGroup.bringToFront();
+        this.canvas.bringObjectToFront(postGroup);
         this.canvas.setActiveObject(postGroup);
         this.canvas.requestRenderAll();
       }
