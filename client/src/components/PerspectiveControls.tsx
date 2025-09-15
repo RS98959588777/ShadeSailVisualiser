@@ -9,7 +9,10 @@ import {
   Move3D, 
   Anchor, 
   Target,
-  RefreshCcw 
+  RefreshCcw,
+  MoveHorizontal,
+  MoveVertical,
+  Layers3
 } from 'lucide-react';
 
 interface PerspectiveControlsProps {
@@ -20,6 +23,13 @@ interface PerspectiveControlsProps {
   perspectiveValue: number;
   onPerspectiveChange: (value: number) => void;
   isAnchorMode: boolean;
+  // New axis movement props
+  xPosition: number;
+  onXPositionChange: (value: number) => void;
+  yPosition: number;
+  onYPositionChange: (value: number) => void;
+  zPosition: number;
+  onZPositionChange: (value: number) => void;
 }
 
 const PERSPECTIVE_PRESETS = [
@@ -37,7 +47,13 @@ export default function PerspectiveControls({
   onTiltChange,
   perspectiveValue,
   onPerspectiveChange,
-  isAnchorMode
+  isAnchorMode,
+  xPosition,
+  onXPositionChange,
+  yPosition,
+  onYPositionChange,
+  zPosition,
+  onZPositionChange
 }: PerspectiveControlsProps) {
   const [selectedPreset, setSelectedPreset] = useState<string>('normal');
 
@@ -115,9 +131,73 @@ export default function PerspectiveControls({
 
       <Separator />
 
-      {/* Manual Controls */}
+      {/* 3D Axis Movement */}
       <div className="space-y-4">
-        <h5 className="text-sm font-medium text-foreground">Manual Adjustment</h5>
+        <h5 className="text-sm font-medium text-foreground">3D Positioning</h5>
+        
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-foreground flex items-center gap-1">
+              <MoveHorizontal className="w-3 h-3" />
+              X-Axis (Left/Right)
+            </span>
+            <span className="text-xs text-muted-foreground">{xPosition}</span>
+          </div>
+          <Slider
+            value={[xPosition]}
+            onValueChange={(value) => onXPositionChange(value[0])}
+            min={-200}
+            max={200}
+            step={5}
+            className="w-full"
+            data-testid="slider-x-position"
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-foreground flex items-center gap-1">
+              <MoveVertical className="w-3 h-3" />
+              Y-Axis (Up/Down)
+            </span>
+            <span className="text-xs text-muted-foreground">{yPosition}</span>
+          </div>
+          <Slider
+            value={[yPosition]}
+            onValueChange={(value) => onYPositionChange(value[0])}
+            min={-200}
+            max={200}
+            step={5}
+            className="w-full"
+            data-testid="slider-y-position"
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-foreground flex items-center gap-1">
+              <Layers3 className="w-3 h-3" />
+              Z-Axis (Depth)
+            </span>
+            <span className="text-xs text-muted-foreground">{zPosition}</span>
+          </div>
+          <Slider
+            value={[zPosition]}
+            onValueChange={(value) => onZPositionChange(value[0])}
+            min={-50}
+            max={50}
+            step={2}
+            className="w-full"
+            data-testid="slider-z-position"
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Manual Rotation Controls */}
+      <div className="space-y-4">
+        <h5 className="text-sm font-medium text-foreground">Rotation & Perspective</h5>
         
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -157,13 +237,16 @@ export default function PerspectiveControls({
           onClick={() => {
             onTiltChange(0);
             onPerspectiveChange(0);
+            onXPositionChange(0);
+            onYPositionChange(0);
+            onZPositionChange(0);
             handlePresetSelect('normal');
           }}
           className="w-full"
-          data-testid="button-reset-perspective"
+          data-testid="button-reset-all"
         >
           <RefreshCcw className="w-4 h-4 mr-2" />
-          Reset to Normal
+          Reset All Positioning
         </Button>
       </div>
 
@@ -171,12 +254,12 @@ export default function PerspectiveControls({
 
       {/* Tips */}
       <div className="p-3 bg-muted/50 rounded-md">
-        <h6 className="font-medium text-sm text-foreground mb-2">3D Tips</h6>
+        <h6 className="font-medium text-sm text-foreground mb-2">Positioning Tips</h6>
         <ul className="text-xs text-muted-foreground space-y-1">
-          <li>• Use anchor points for precise positioning</li>
-          <li>• Try different presets for realistic effects</li>
-          <li>• Combine tilt and perspective for depth</li>
-          <li>• Stretch effect works great for patios</li>
+          <li>• X/Y axes move the sail in 2D space</li>
+          <li>• Z-axis creates depth (closer/farther)</li>
+          <li>• Combine axis movement with tilt/perspective</li>
+          <li>• Use anchor points for fine adjustments</li>
         </ul>
       </div>
     </div>

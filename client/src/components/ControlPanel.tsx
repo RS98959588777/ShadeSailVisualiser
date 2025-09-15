@@ -38,6 +38,10 @@ export default function ControlPanel({
   const [isAnchorMode, setIsAnchorMode] = useState(false);
   const [tiltValue, setTiltValue] = useState(0);
   const [perspectiveValue, setPerspectiveValue] = useState(0);
+  // New axis positioning state
+  const [xPosition, setXPosition] = useState(0);
+  const [yPosition, setYPosition] = useState(0);
+  const [zPosition, setZPosition] = useState(0);
 
   if (!isVisible) {
     return null;
@@ -208,6 +212,29 @@ export default function ControlPanel({
                 }
               }}
               isAnchorMode={isAnchorMode}
+              xPosition={xPosition}
+              onXPositionChange={(value) => {
+                setXPosition(value);
+                if (perspectiveTransform) {
+                  perspectiveTransform.moveOnXAxis(value - xPosition);
+                }
+              }}
+              yPosition={yPosition}
+              onYPositionChange={(value) => {
+                setYPosition(value);
+                if (perspectiveTransform) {
+                  perspectiveTransform.moveOnYAxis(value - yPosition);
+                }
+              }}
+              zPosition={zPosition}
+              onZPositionChange={(value) => {
+                const previousZ = zPosition;
+                setZPosition(value);
+                if (perspectiveTransform) {
+                  // Apply absolute Z position instead of delta to avoid drift
+                  perspectiveTransform.moveOnZAxis(value);
+                }
+              }}
             />
           </TabsContent>
         </Tabs>

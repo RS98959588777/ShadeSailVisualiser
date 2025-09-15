@@ -240,6 +240,74 @@ export class PerspectiveTransform {
     this.canvas.renderAll();
   }
 
+  public moveOnXAxis(offset: number): void {
+    const currentLeft = this.object.left || 0;
+    this.object.set({
+      left: currentLeft + offset
+    });
+    this.updateAnchorPositions();
+    this.canvas.renderAll();
+  }
+
+  public moveOnYAxis(offset: number): void {
+    const currentTop = this.object.top || 0;
+    this.object.set({
+      top: currentTop + offset
+    });
+    this.updateAnchorPositions();
+    this.canvas.renderAll();
+  }
+
+  public moveOnZAxis(depth: number): void {
+    // Simulate Z-axis movement with scale only (no skew accumulation)
+    // Positive depth = closer (larger), negative = farther (smaller)
+    const baseScale = 1.0;
+    const depthScale = baseScale + (depth * 0.01); // 1% scale change per unit
+    
+    this.object.set({
+      scaleX: Math.max(0.2, Math.min(2.0, depthScale)),
+      scaleY: Math.max(0.2, Math.min(2.0, depthScale))
+    });
+    
+    // Update anchor positions after scaling
+    this.updateAnchorPositions();
+    this.canvas.renderAll();
+  }
+
+  public setAxisPosition(x: number, y: number, z: number): void {
+    // Set absolute position on all axes
+    const bounds = this.object.getBoundingRect();
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+    
+    // Z-axis affects scale (depth simulation)
+    const depthScale = 1.0 + (z * 0.01);
+    
+    this.object.set({
+      left: centerX + x,
+      top: centerY + y,
+      scaleX: Math.max(0.2, Math.min(2.0, depthScale)),
+      scaleY: Math.max(0.2, Math.min(2.0, depthScale))
+    });
+    
+    this.updateAnchorPositions();
+    this.canvas.renderAll();
+  }
+
+  private updateAnchorPositions(): void {
+    if (this.anchorControls.length === 0) return;
+    
+    const corners = this.getObjectCorners();
+    this.anchorControls.forEach((anchor, index) => {
+      if (corners[index]) {
+        anchor.set({
+          left: corners[index].x,
+          top: corners[index].y
+        });
+      }
+    });
+  }
+
   public getCurrentSettings(): PerspectiveSettings {
     const corners = this.anchorControls.map(anchor => ({
       x: anchor.left!,
