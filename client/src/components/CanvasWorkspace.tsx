@@ -1,19 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, FabricImage, Polygon } from 'fabric';
+import { Canvas, FabricImage, Polygon, Point } from 'fabric';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
 interface CanvasWorkspaceProps {
   imageFile?: File;
   selectedColor?: string;
+  selectedShape?: string;
   onCanvasReady?: (canvas: Canvas) => void;
 }
 
-export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', onCanvasReady }: CanvasWorkspaceProps) {
+export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', selectedShape = 'triangle', onCanvasReady }: CanvasWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const [zoom, setZoom] = useState(1);
   const [hasSail, setHasSail] = useState(false);
+
+  // Update existing sail color when selectedColor changes
+  useEffect(() => {
+    if (fabricCanvasRef.current && hasSail) {
+      const activeObject = fabricCanvasRef.current.getActiveObject();
+      if (activeObject && activeObject.type === 'polygon') {
+        activeObject.set('fill', selectedColor);
+        activeObject.set('stroke', selectedColor);
+        activeObject.set('cornerStrokeColor', selectedColor);
+        fabricCanvasRef.current.renderAll();
+      }
+    }
+  }, [selectedColor, hasSail]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -40,9 +54,9 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
           const scale = Math.min(scaleX, scaleY);
           
           img.scale(scale);
-          img.centerH();
-          img.centerV();
           img.set({
+            left: (canvas.width! - img.getScaledWidth()) / 2,
+            top: (canvas.height! - img.getScaledHeight()) / 2,
             selectable: false,
             evented: false,
           });
@@ -60,15 +74,46 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     };
   }, [imageFile, onCanvasReady]);
 
+  const getShapePoints = (shape: string) => {
+    switch (shape) {
+      case 'triangle':
+        return [
+          new Point(100, 100),
+          new Point(300, 80),
+          new Point(200, 250)
+        ];
+      case 'square':
+        return [
+          new Point(150, 120),
+          new Point(270, 120),
+          new Point(270, 240),
+          new Point(150, 240)
+        ];
+      case 'rectangle':
+        return [
+          new Point(120, 140),
+          new Point(320, 140),
+          new Point(320, 220),
+          new Point(120, 220)
+        ];
+      default:
+        return [
+          new Point(100, 100),
+          new Point(300, 80),
+          new Point(200, 250)
+        ];
+    }
+  };
+
   const addShadeSail = () => {
     if (!fabricCanvasRef.current) return;
 
-    // Create triangular shade sail
-    const points = [
-      { x: 100, y: 100 },
-      { x: 300, y: 80 },
-      { x: 200, y: 250 }
-    ];
+    // Remove existing sail if present
+    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => obj.type === 'polygon');
+    existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
+
+    // Create shade sail with selected shape
+    const points = getShapePoints(selectedShape);
 
     const sail = new Polygon(points, {
       fill: selectedColor,
@@ -122,9 +167,12 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
           const scale = Math.min(scaleX, scaleY);
           
           img.scale(scale);
-          img.centerH();
-          img.centerV();
-          img.set({ selectable: false, evented: false });
+          img.set({ 
+            left: (fabricCanvasRef.current!.width! - img.getScaledWidth()) / 2,
+            top: (fabricCanvasRef.current!.height! - img.getScaledHeight()) / 2,
+            selectable: false, 
+            evented: false 
+          });
           
           fabricCanvasRef.current!.add(img);
           fabricCanvasRef.current!.sendObjectToBack(img);

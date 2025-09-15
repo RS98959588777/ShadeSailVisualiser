@@ -5,6 +5,7 @@ export default function ControlPanelExample() {
   const [selectedColor, setSelectedColor] = useState('#2D4A40');
   const [opacity, setOpacity] = useState(80);
   const [rotation, setRotation] = useState(0);
+  const [selectedShape, setSelectedShape] = useState('triangle');
 
   return (
     <div className="h-96">
@@ -23,6 +24,11 @@ export default function ControlPanelExample() {
         onRotationChange={(value) => {
           setRotation(value);
           console.log('Rotation changed:', value);
+        }}
+        selectedShape={selectedShape}
+        onShapeSelect={(shape) => {
+          setSelectedShape(shape);
+          console.log('Shape selected:', shape);
         }}
         isVisible={true}
       />

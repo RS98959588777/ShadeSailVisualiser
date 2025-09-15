@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Canvas } from 'fabric';
 import Header from './Header';
 import ImageUploader from './ImageUploader';
@@ -10,8 +10,28 @@ export default function ShadeSailVisualizer() {
   const [selectedColor, setSelectedColor] = useState('#2D4A40');
   const [opacity, setOpacity] = useState(80);
   const [rotation, setRotation] = useState(0);
+  const [selectedShape, setSelectedShape] = useState('triangle');
   const [canvas, setCanvas] = useState<Canvas | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [hasSail, setHasSail] = useState(false);
+
+  // Track if there's a sail on the canvas
+  useEffect(() => {
+    if (canvas) {
+      const checkForSail = () => {
+        const sails = canvas.getObjects().filter(obj => obj.type === 'polygon');
+        setHasSail(sails.length > 0);
+      };
+      
+      canvas.on('object:added', checkForSail);
+      canvas.on('object:removed', checkForSail);
+      
+      return () => {
+        canvas.off('object:added', checkForSail);
+        canvas.off('object:removed', checkForSail);
+      };
+    }
+  }, [canvas]);
 
   const handleImageUpload = async (file: File) => {
     setIsUploading(true);
@@ -37,6 +57,7 @@ export default function ShadeSailVisualizer() {
     setSelectedColor('#2D4A40');
     setOpacity(80);
     setRotation(0);
+    setSelectedShape('triangle');
     if (canvas) {
       canvas.clear();
     }
@@ -48,9 +69,10 @@ export default function ShadeSailVisualizer() {
     // Update active sail color if canvas exists
     if (canvas) {
       const activeObject = canvas.getActiveObject();
-      if (activeObject) {
+      if (activeObject && activeObject.type === 'polygon') {
         activeObject.set('fill', color);
         activeObject.set('stroke', color);
+        activeObject.set('cornerStrokeColor', color);
         canvas.renderAll();
       }
     }
@@ -80,6 +102,19 @@ export default function ShadeSailVisualizer() {
     }
   };
 
+  const handleShapeChange = (shape: string) => {
+    setSelectedShape(shape);
+    // If there's already a sail, recreate it with the new shape
+    if (canvas && hasSail) {
+      // Remove existing sails
+      const existingSails = canvas.getObjects().filter(obj => obj.type === 'polygon');
+      existingSails.forEach(sail => canvas.remove(sail));
+      
+      // Add new sail with selected shape - this will be handled by the canvas component
+      canvas.renderAll();
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background">
       <Header
@@ -100,6 +135,7 @@ export default function ShadeSailVisualizer() {
             <CanvasWorkspace
               imageFile={uploadedImage}
               selectedColor={selectedColor}
+              selectedShape={selectedShape}
               onCanvasReady={setCanvas}
             />
           )}
@@ -114,6 +150,8 @@ export default function ShadeSailVisualizer() {
             onOpacityChange={handleOpacityChange}
             rotation={rotation}
             onRotationChange={handleRotationChange}
+            selectedShape={selectedShape}
+            onShapeSelect={handleShapeChange}
             isVisible={!!uploadedImage}
           />
         )}

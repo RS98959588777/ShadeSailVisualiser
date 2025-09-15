@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Settings, Palette, Move, RotateCw } from 'lucide-react';
+import { Settings, Palette, Move, RotateCw, Shapes } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import ColorPalette from './ColorPalette';
+import ShapeSelector from './ShapeSelector';
 
 interface ControlPanelProps {
   selectedColor: string;
@@ -13,6 +14,8 @@ interface ControlPanelProps {
   onOpacityChange: (opacity: number) => void;
   rotation: number;
   onRotationChange: (rotation: number) => void;
+  selectedShape: string;
+  onShapeSelect: (shape: string) => void;
   isVisible?: boolean;
 }
 
@@ -23,6 +26,8 @@ export default function ControlPanel({
   onOpacityChange,
   rotation,
   onRotationChange,
+  selectedShape,
+  onShapeSelect,
   isVisible = true
 }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState('color');
@@ -40,20 +45,27 @@ export default function ControlPanel({
         </h2>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="shape" className="text-xs" data-testid="tab-shape">
+              <Shapes className="w-4 h-4" />
+            </TabsTrigger>
             <TabsTrigger value="color" className="text-xs" data-testid="tab-color">
-              <Palette className="w-4 h-4 mr-1" />
-              Color
+              <Palette className="w-4 h-4" />
             </TabsTrigger>
             <TabsTrigger value="position" className="text-xs" data-testid="tab-position">
-              <Move className="w-4 h-4 mr-1" />
-              Position
+              <Move className="w-4 h-4" />
             </TabsTrigger>
             <TabsTrigger value="effects" className="text-xs" data-testid="tab-effects">
-              <RotateCw className="w-4 h-4 mr-1" />
-              Effects
+              <RotateCw className="w-4 h-4" />
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="shape" className="space-y-4">
+            <ShapeSelector
+              selectedShape={selectedShape}
+              onShapeSelect={onShapeSelect}
+            />
+          </TabsContent>
 
           <TabsContent value="color" className="space-y-4">
             <ColorPalette
