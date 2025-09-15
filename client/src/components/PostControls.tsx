@@ -45,11 +45,10 @@ export default function PostControls({
 
   const handleAddPost = () => {
     if (postManager) {
-      // Add post at center of canvas
-      const canvasCenter = { x: 400, y: 300 };
+      // Add post at canvas center (PostManager will calculate dynamically)
       const newPostId = postManager.addPost(
-        canvasCenter.x,
-        canvasCenter.y,
+        undefined, // Let PostManager calculate center
+        undefined,
         selectedHeight,
         selectedThickness,
         selectedColor

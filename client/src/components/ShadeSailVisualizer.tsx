@@ -5,6 +5,7 @@ import ImageUploader from './ImageUploader';
 import CanvasWorkspace from './CanvasWorkspace';
 import ControlPanel from './ControlPanel';
 import { PerspectiveTransform } from './PerspectiveTransform';
+import { PostManager } from './ShadeSailPost';
 
 export default function ShadeSailVisualizer() {
   const [uploadedImage, setUploadedImage] = useState<File | undefined>();
@@ -14,6 +15,8 @@ export default function ShadeSailVisualizer() {
   const [selectedShape, setSelectedShape] = useState('triangle');
   const [canvas, setCanvas] = useState<Canvas | null>(null);
   const [perspectiveTransform, setPerspectiveTransform] = useState<PerspectiveTransform | null>(null);
+  const [postManager, setPostManager] = useState<PostManager | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [hasSail, setHasSail] = useState(false);
 
@@ -34,6 +37,45 @@ export default function ShadeSailVisualizer() {
       };
     }
   }, [canvas]);
+
+  // Initialize PostManager when canvas is ready
+  useEffect(() => {
+    if (canvas && !postManager) {
+      const manager = new PostManager(canvas);
+      setPostManager(manager);
+    }
+  }, [canvas, postManager]);
+
+  // Wire canvas selection to UI selection
+  useEffect(() => {
+    if (canvas && postManager) {
+      const handleSelection = () => {
+        const selectedPost = postManager.getSelectedPost();
+        setSelectedPostId(selectedPost);
+      };
+
+      const handleClearSelection = () => {
+        setSelectedPostId(null);
+      };
+
+      canvas.on('selection:created', handleSelection);
+      canvas.on('selection:updated', handleSelection);
+      canvas.on('selection:cleared', handleClearSelection);
+
+      return () => {
+        canvas.off('selection:created', handleSelection);
+        canvas.off('selection:updated', handleSelection);
+        canvas.off('selection:cleared', handleClearSelection);
+      };
+    }
+  }, [canvas, postManager]);
+
+  const handlePostSelect = (id: string | null) => {
+    setSelectedPostId(id);
+    if (id && postManager) {
+      postManager.selectPost(id);
+    }
+  };
 
   const handleImageUpload = async (file: File) => {
     setIsUploading(true);
@@ -173,6 +215,9 @@ export default function ShadeSailVisualizer() {
             selectedShape={selectedShape}
             onShapeSelect={handleShapeChange}
             perspectiveTransform={perspectiveTransform}
+            postManager={postManager}
+            selectedPostId={selectedPostId}
+            onPostSelect={handlePostSelect}
             isVisible={!!uploadedImage}
           />
         )}

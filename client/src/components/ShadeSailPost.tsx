@@ -76,6 +76,14 @@ export class ShadeSailPost {
     (this.postGroup as any).postId = this.settings.id;
 
     this.canvas.add(this.postGroup);
+    
+    // Add event listener for position updates when dragged
+    this.postGroup.on('modified', () => {
+      if (this.postGroup) {
+        this.settings.x = this.postGroup.left || 0;
+        this.settings.y = this.postGroup.top || 0;
+      }
+    });
   }
 
   private create3DGradient(baseColor: string): any {
@@ -84,7 +92,7 @@ export class ShadeSailPost {
 
     return new Gradient({
       type: 'linear',
-      coords: { x1: 0, y1: 0, x2: 1, y2: 0 },
+      coords: { x1: 0, y1: 0, x2: this.settings.thickness, y2: 0 },
       colorStops: [
         { offset: 0, color: lightShade },
         { offset: 0.3, color: baseColor },
@@ -113,9 +121,32 @@ export class ShadeSailPost {
   }
 
   public updatePost(newSettings: Partial<PostSettings>): void {
-    this.settings = { ...this.settings, ...newSettings };
+    // Preserve current position if post is on canvas
+    let currentLeft = this.settings.x;
+    let currentTop = this.settings.y;
+    let wasSelected = false;
+    
+    if (this.postGroup) {
+      currentLeft = this.postGroup.left || this.settings.x;
+      currentTop = this.postGroup.top || this.settings.y;
+      wasSelected = this.canvas.getActiveObject() === this.postGroup;
+    }
+    
+    this.settings = { 
+      ...this.settings, 
+      ...newSettings,
+      x: currentLeft,
+      y: currentTop
+    };
+    
     this.removePost();
     this.createPost();
+    
+    // Restore selection if the post was previously selected
+    if (wasSelected && this.postGroup) {
+      this.canvas.setActiveObject(this.postGroup);
+      this.canvas.requestRenderAll();
+    }
   }
 
   public removePost(): void {
@@ -164,9 +195,12 @@ export class PostManager {
     this.canvas = canvas;
   }
 
-  public addPost(x: number, y: number, height: number = 200, thickness: number = 20, color: string = '#8B4513'): string {
+  public addPost(x?: number, y?: number, height: number = 200, thickness: number = 20, color: string = '#8B4513'): string {
     const id = `post-${this.nextId++}`;
-    const settings: PostSettings = { id, x, y, height, thickness, color };
+    // Use canvas center if no position specified (using nullish coalescing to handle 0)
+    const finalX = x ?? this.canvas.getWidth() / 2;
+    const finalY = y ?? this.canvas.getHeight() / 2;
+    const settings: PostSettings = { id, x: finalX, y: finalY, height, thickness, color };
     const post = new ShadeSailPost(this.canvas, settings);
     this.posts.set(id, post);
     return id;
@@ -198,5 +232,26 @@ export class PostManager {
   public clearAllPosts(): void {
     this.posts.forEach(post => post.removePost());
     this.posts.clear();
+  }
+
+  public getSelectedPost(): string | null {
+    const activeObject = this.canvas.getActiveObject();
+    if (activeObject && (activeObject as any).postId) {
+      return (activeObject as any).postId;
+    }
+    return null;
+  }
+
+  public selectPost(id: string): void {
+    const post = this.posts.get(id);
+    if (post) {
+      const postGroup = post.getPost();
+      if (postGroup) {
+        // Bring to front for better visibility if overlapping
+        postGroup.bringToFront();
+        this.canvas.setActiveObject(postGroup);
+        this.canvas.requestRenderAll();
+      }
+    }
   }
 }

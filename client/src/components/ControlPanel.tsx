@@ -22,6 +22,8 @@ interface ControlPanelProps {
   onShapeSelect: (shape: string) => void;
   perspectiveTransform?: PerspectiveTransform | null;
   postManager?: PostManager | null;
+  selectedPostId?: string | null;
+  onPostSelect?: (id: string | null) => void;
   isVisible?: boolean;
 }
 
@@ -36,6 +38,8 @@ export default function ControlPanel({
   onShapeSelect,
   perspectiveTransform,
   postManager,
+  selectedPostId,
+  onPostSelect,
   isVisible = true
 }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState('color');
@@ -46,8 +50,10 @@ export default function ControlPanel({
   const [xPosition, setXPosition] = useState(0);
   const [yPosition, setYPosition] = useState(0);
   const [zPosition, setZPosition] = useState(0);
-  // Post management state
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  // Use lifted post selection state or fallback to local state
+  const [localSelectedPostId, setLocalSelectedPostId] = useState<string | null>(null);
+  const currentSelectedPostId = selectedPostId !== undefined ? selectedPostId : localSelectedPostId;
+  const currentOnPostSelect = onPostSelect || setLocalSelectedPostId;
 
   if (!isVisible) {
     return null;
@@ -158,9 +164,9 @@ export default function ControlPanel({
 
           <TabsContent value="posts" className="space-y-4">
             <PostControls
-              postManager={postManager}
-              selectedPostId={selectedPostId}
-              onPostSelect={setSelectedPostId}
+              postManager={postManager || null}
+              selectedPostId={currentSelectedPostId}
+              onPostSelect={currentOnPostSelect}
             />
           </TabsContent>
 
