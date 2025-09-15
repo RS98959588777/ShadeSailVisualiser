@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Palette, Move, RotateCw, Shapes, Move3D } from 'lucide-react';
+import { Settings, Palette, Move, RotateCw, Shapes, Move3D, Pilcrow } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
@@ -7,7 +7,9 @@ import { Card } from "@/components/ui/card";
 import ColorPalette from './ColorPalette';
 import ShapeSelector from './ShapeSelector';
 import PerspectiveControls from './PerspectiveControls';
+import PostControls from './PostControls';
 import { PerspectiveTransform } from './PerspectiveTransform';
+import { PostManager } from './ShadeSailPost';
 
 interface ControlPanelProps {
   selectedColor: string;
@@ -19,6 +21,7 @@ interface ControlPanelProps {
   selectedShape: string;
   onShapeSelect: (shape: string) => void;
   perspectiveTransform?: PerspectiveTransform | null;
+  postManager?: PostManager | null;
   isVisible?: boolean;
 }
 
@@ -32,6 +35,7 @@ export default function ControlPanel({
   selectedShape,
   onShapeSelect,
   perspectiveTransform,
+  postManager,
   isVisible = true
 }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState('color');
@@ -42,6 +46,8 @@ export default function ControlPanel({
   const [xPosition, setXPosition] = useState(0);
   const [yPosition, setYPosition] = useState(0);
   const [zPosition, setZPosition] = useState(0);
+  // Post management state
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   if (!isVisible) {
     return null;
@@ -66,8 +72,8 @@ export default function ControlPanel({
             <TabsTrigger value="position" className="text-xs" data-testid="tab-position">
               <Move className="w-4 h-4" />
             </TabsTrigger>
-            <TabsTrigger value="effects" className="text-xs" data-testid="tab-effects">
-              <RotateCw className="w-4 h-4" />
+            <TabsTrigger value="posts" className="text-xs" data-testid="tab-posts">
+              <Pilcrow className="w-4 h-4" />
             </TabsTrigger>
             <TabsTrigger value="perspective" className="text-xs" data-testid="tab-perspective">
               <Move3D className="w-4 h-4" />
@@ -150,38 +156,12 @@ export default function ControlPanel({
             </div>
           </TabsContent>
 
-          <TabsContent value="effects" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Transparency</h4>
-                <div className="space-y-2">
-                  <Slider
-                    value={[opacity]}
-                    onValueChange={(value) => onOpacityChange(value[0])}
-                    min={10}
-                    max={100}
-                    step={5}
-                    className="w-full"
-                    data-testid="slider-opacity"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>10%</span>
-                    <span className="font-medium">{opacity}%</span>
-                    <span>100%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 bg-muted/50 rounded-md">
-                <h5 className="font-medium text-sm text-foreground mb-2">Preview Tips</h5>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• Drag corners to resize the sail</li>
-                  <li>• Click and drag to move position</li>
-                  <li>• Use transparency to see through</li>
-                  <li>• Try different angles for best fit</li>
-                </ul>
-              </div>
-            </div>
+          <TabsContent value="posts" className="space-y-4">
+            <PostControls
+              postManager={postManager}
+              selectedPostId={selectedPostId}
+              onPostSelect={setSelectedPostId}
+            />
           </TabsContent>
 
           <TabsContent value="perspective" className="space-y-4">
