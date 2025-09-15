@@ -2,17 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { Canvas, FabricImage, Polygon, Point } from 'fabric';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { PerspectiveTransform } from './PerspectiveTransform';
 
 interface CanvasWorkspaceProps {
   imageFile?: File;
   selectedColor?: string;
   selectedShape?: string;
   onCanvasReady?: (canvas: Canvas) => void;
+  onSailReady?: (perspectiveTransform: PerspectiveTransform | null) => void;
 }
 
-export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', selectedShape = 'triangle', onCanvasReady }: CanvasWorkspaceProps) {
+export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', selectedShape = 'triangle', onCanvasReady, onSailReady }: CanvasWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
+  const perspectiveTransformRef = useRef<PerspectiveTransform | null>(null);
   const [zoom, setZoom] = useState(1);
   const [hasSail, setHasSail] = useState(false);
 
@@ -131,6 +134,10 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
     setHasSail(true);
+
+    // Create perspective transform for the new sail
+    perspectiveTransformRef.current = new PerspectiveTransform(fabricCanvasRef.current, sail);
+    onSailReady?.(perspectiveTransformRef.current);
   };
 
   const handleZoomIn = () => {
@@ -153,6 +160,14 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
 
   const resetCanvas = () => {
     if (!fabricCanvasRef.current) return;
+    
+    // Clean up perspective transform
+    if (perspectiveTransformRef.current) {
+      perspectiveTransformRef.current.removeAnchorControls();
+      perspectiveTransformRef.current = null;
+      onSailReady?.(null);
+    }
+    
     fabricCanvasRef.current.clear();
     setZoom(1);
     fabricCanvasRef.current.setZoom(1);

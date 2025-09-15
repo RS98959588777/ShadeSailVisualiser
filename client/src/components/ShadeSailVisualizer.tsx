@@ -4,6 +4,7 @@ import Header from './Header';
 import ImageUploader from './ImageUploader';
 import CanvasWorkspace from './CanvasWorkspace';
 import ControlPanel from './ControlPanel';
+import { PerspectiveTransform } from './PerspectiveTransform';
 
 export default function ShadeSailVisualizer() {
   const [uploadedImage, setUploadedImage] = useState<File | undefined>();
@@ -12,6 +13,7 @@ export default function ShadeSailVisualizer() {
   const [rotation, setRotation] = useState(0);
   const [selectedShape, setSelectedShape] = useState('triangle');
   const [canvas, setCanvas] = useState<Canvas | null>(null);
+  const [perspectiveTransform, setPerspectiveTransform] = useState<PerspectiveTransform | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [hasSail, setHasSail] = useState(false);
 
@@ -154,6 +156,7 @@ export default function ShadeSailVisualizer() {
               selectedColor={selectedColor}
               selectedShape={selectedShape}
               onCanvasReady={setCanvas}
+              onSailReady={setPerspectiveTransform}
             />
           )}
         </div>
@@ -169,6 +172,7 @@ export default function ShadeSailVisualizer() {
             onRotationChange={handleRotationChange}
             selectedShape={selectedShape}
             onShapeSelect={handleShapeChange}
+            perspectiveTransform={perspectiveTransform}
             isVisible={!!uploadedImage}
           />
         )}
