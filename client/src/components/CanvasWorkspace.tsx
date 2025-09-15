@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, FabricImage, Polygon, Point } from 'fabric';
+import { Canvas, FabricImage, Polygon, Point, Path } from 'fabric';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { PerspectiveTransform } from './PerspectiveTransform';
@@ -23,7 +23,7 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
   useEffect(() => {
     if (fabricCanvasRef.current && hasSail) {
       const activeObject = fabricCanvasRef.current.getActiveObject();
-      if (activeObject && activeObject.type === 'polygon') {
+      if (activeObject && (activeObject.type === 'polygon' || activeObject.type === 'path' || (activeObject as any).isSail)) {
         activeObject.set('fill', selectedColor);
         activeObject.set('stroke', selectedColor);
         activeObject.set('cornerStrokeColor', selectedColor);
@@ -108,17 +108,98 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     }
   };
 
+  // Utility function to create curved sail path with 8% inward curve at edge midpoints
+  const polygonToCurvedPath = (points: Point[], sagRatio: number = 0.08): string => {
+    if (points.length < 3) return '';
+
+    // Calculate polygon centroid for inward direction
+    const centroid = points.reduce(
+      (sum, p) => ({ x: sum.x + p.x, y: sum.y + p.y }), 
+      { x: 0, y: 0 }
+    );
+    centroid.x /= points.length;
+    centroid.y /= points.length;
+
+    const pathCommands: (string | number)[] = [];
+    
+    // Start with move command to first point
+    pathCommands.push('M', points[0].x, points[0].y);
+
+    // Create curved edges using quadratic bezier curves
+    for (let i = 0; i < points.length; i++) {
+      const currentPoint = points[i];
+      const nextPoint = points[(i + 1) % points.length];
+      
+      // Calculate edge vector and properties
+      const edgeVector = { x: nextPoint.x - currentPoint.x, y: nextPoint.y - currentPoint.y };
+      const edgeLength = Math.sqrt(edgeVector.x * edgeVector.x + edgeVector.y * edgeVector.y);
+      
+      // Skip if edge is too short
+      if (edgeLength < 1) continue;
+      
+      // Calculate edge midpoint
+      const midpoint = {
+        x: (currentPoint.x + nextPoint.x) / 2,
+        y: (currentPoint.y + nextPoint.y) / 2
+      };
+      
+      // Calculate unit tangent vector
+      const unitTangent = { x: edgeVector.x / edgeLength, y: edgeVector.y / edgeLength };
+      
+      // Calculate normal vectors (perpendicular to edge)
+      const normal1 = { x: -unitTangent.y, y: unitTangent.x };  // 90° counterclockwise
+      const normal2 = { x: unitTangent.y, y: -unitTangent.x };  // 90° clockwise
+      
+      // Choose inward normal (the one that points toward centroid)
+      const towardCentroid1 = {
+        x: (midpoint.x + normal1.x) - centroid.x,
+        y: (midpoint.y + normal1.y) - centroid.y
+      };
+      const towardCentroid2 = {
+        x: (midpoint.x + normal2.x) - centroid.x,
+        y: (midpoint.y + normal2.y) - centroid.y
+      };
+      
+      const dist1 = towardCentroid1.x * towardCentroid1.x + towardCentroid1.y * towardCentroid1.y;
+      const dist2 = towardCentroid2.x * towardCentroid2.x + towardCentroid2.y * towardCentroid2.y;
+      
+      const inwardNormal = dist1 < dist2 ? normal1 : normal2;
+      
+      // Calculate curve depth (8% of edge length inward)
+      const curveDepth = edgeLength * sagRatio;
+      
+      // Calculate control point for quadratic bezier
+      // For quadratic bezier from A to B with control P, midpoint deviation = 0.5*(P - midpoint)
+      // So P = midpoint + 2 * desired_deviation
+      const controlPoint = {
+        x: midpoint.x + 2 * curveDepth * inwardNormal.x,
+        y: midpoint.y + 2 * curveDepth * inwardNormal.y
+      };
+      
+      // Add quadratic curve command
+      pathCommands.push('Q', controlPoint.x, controlPoint.y, nextPoint.x, nextPoint.y);
+    }
+    
+    // Close the path
+    pathCommands.push('Z');
+    
+    return pathCommands.join(' ');
+  };
+
   const addShadeSail = () => {
     if (!fabricCanvasRef.current) return;
 
     // Remove existing sail if present
-    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => obj.type === 'polygon');
+    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => 
+      obj.type === 'polygon' || obj.type === 'path' || (obj as any).isSail
+    );
     existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
 
-    // Create shade sail with selected shape
+    // Create shade sail with selected shape and curved edges
     const points = getShapePoints(selectedShape);
+    const pathData = polygonToCurvedPath(points, 0.08); // 8% curve depth
 
-    const sail = new Polygon(points, {
+    const sail = new Path(pathData, {
       fill: selectedColor,
       stroke: selectedColor,
       strokeWidth: 2,
@@ -129,6 +210,9 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
       cornerColor: '#fff',
       cornerStrokeColor: selectedColor,
     });
+
+    // Mark as sail for identification
+    (sail as any).isSail = true;
 
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
