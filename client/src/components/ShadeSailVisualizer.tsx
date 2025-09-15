@@ -44,12 +44,29 @@ export default function ShadeSailVisualizer() {
   const handleDownload = () => {
     if (!canvas) return;
     
-    // Create download link
-    const link = document.createElement('a');
-    link.download = 'shade-sail-mockup.png';
-    link.href = canvas.toDataURL();
-    link.click();
-    console.log('Mockup downloaded');
+    try {
+      // Create high-quality download link
+      const link = document.createElement('a');
+      link.download = `shade-sail-mockup-${new Date().toISOString().split('T')[0]}.png`;
+      
+      // Export at higher quality
+      const dataURL = canvas.toDataURL({
+        format: 'png',
+        quality: 1.0,
+        multiplier: 2 // Export at 2x resolution for better quality
+      });
+      
+      link.href = dataURL;
+      link.click();
+      console.log('High-quality mockup downloaded');
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to standard quality
+      const link = document.createElement('a');
+      link.download = 'shade-sail-mockup.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
   };
 
   const handleReset = () => {

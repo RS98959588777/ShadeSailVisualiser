@@ -137,7 +137,8 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     if (!fabricCanvasRef.current) return;
     const newZoom = Math.min(zoom * 1.2, 3);
     setZoom(newZoom);
-    fabricCanvasRef.current.setZoom(newZoom);
+    const center = fabricCanvasRef.current.getCenter();
+    fabricCanvasRef.current.zoomToPoint(new Point(center.left, center.top), newZoom);
     fabricCanvasRef.current.renderAll();
   };
 
@@ -145,7 +146,8 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     if (!fabricCanvasRef.current) return;
     const newZoom = Math.max(zoom / 1.2, 0.5);
     setZoom(newZoom);
-    fabricCanvasRef.current.setZoom(newZoom);
+    const center = fabricCanvasRef.current.getCenter();
+    fabricCanvasRef.current.zoomToPoint(new Point(center.left, center.top), newZoom);
     fabricCanvasRef.current.renderAll();
   };
 
