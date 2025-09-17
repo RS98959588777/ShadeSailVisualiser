@@ -32,7 +32,8 @@ export default function CanvasWorkspace({
   const [hasSail, setHasSail] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnPoints, setDrawnPoints] = useState<Point[]>([]);
-  const [previewLine, setPreviewLine] = useState<fabric.Line | null>(null);
+  const previewLineRef = useRef<fabric.Line | null>(null);
+  const drawnPointsRef = useRef<Point[]>([]);
   const [showSmoothingSlider, setShowSmoothingSlider] = useState(false);
   const [smoothingTolerance, setSmoothingTolerance] = useState(5);
 
@@ -104,79 +105,90 @@ export default function CanvasWorkspace({
     if (isDrawMode) {
       setIsDrawing(true);
       setDrawnPoints([]);
+      drawnPointsRef.current = [];
+      previewLineRef.current = null;
       canvas.isDrawingMode = false; // Disable freehand drawing
       canvas.selection = false; // Disable object selection during drawing
       
       // Handle mouse clicks to add points
       const handleMouseDown = (e: any) => {
-        if (!e.pointer) return;
+        const pointer = canvas.getPointer(e.e);
+        if (!pointer) return;
         
-        const point = new Point(e.pointer.x, e.pointer.y);
+        const point = new Point(pointer.x, pointer.y);
         
-        setDrawnPoints(prevPoints => {
-          const newPoints = [...prevPoints, point];
-          
-          // Draw line from previous point to current point
-          if (newPoints.length > 1) {
-            const prevPoint = newPoints[newPoints.length - 2];
-            const line = new fabric.Line([
-              prevPoint.x, prevPoint.y, point.x, point.y
-            ], {
-              stroke: selectedColor,
-              strokeWidth: 2,
-              selectable: false,
-              evented: false,
-              isTemporary: true
-            } as any);
-            
-            canvas.add(line);
-            canvas.renderAll();
-          }
-          
-          // Add point marker
-          const circle = new fabric.Circle({
-            left: point.x - 3,
-            top: point.y - 3,
-            radius: 3,
-            fill: selectedColor,
+        // Update both state and ref
+        const newPoints = [...drawnPointsRef.current, point];
+        drawnPointsRef.current = newPoints;
+        setDrawnPoints(newPoints);
+        
+        // Draw line from previous point to current point
+        if (newPoints.length > 1) {
+          const prevPoint = newPoints[newPoints.length - 2];
+          const line = new fabric.Line([
+            prevPoint.x, prevPoint.y, point.x, point.y
+          ], {
+            stroke: selectedColor,
+            strokeWidth: 2,
             selectable: false,
             evented: false,
             isTemporary: true
           } as any);
           
-          canvas.add(circle);
+          canvas.add(line);
           canvas.renderAll();
-          
-          return newPoints;
-        });
+        }
+        
+        // Add point marker
+        const circle = new fabric.Circle({
+          left: point.x - 3,
+          top: point.y - 3,
+          radius: 3,
+          fill: selectedColor,
+          selectable: false,
+          evented: false,
+          isTemporary: true
+        } as any);
+        
+        canvas.add(circle);
+        canvas.renderAll();
       };
       
       // Handle mouse move for preview line
       const handleMouseMove = (e: any) => {
-        if (!e.pointer || drawnPoints.length === 0) return;
+        const pointer = canvas.getPointer(e.e);
+        if (!pointer || drawnPointsRef.current.length === 0) return;
         
-        // Remove previous preview line
-        if (previewLine) {
-          canvas.remove(previewLine);
+        const lastPoint = drawnPointsRef.current[drawnPointsRef.current.length - 1];
+        
+        // Update or create preview line
+        if (previewLineRef.current) {
+          // Update existing preview line coordinates
+          previewLineRef.current.set({
+            x1: lastPoint.x,
+            y1: lastPoint.y,
+            x2: pointer.x,
+            y2: pointer.y
+          });
+          canvas.renderAll();
+        } else {
+          // Create new preview line
+          const newPreviewLine = new fabric.Line([
+            lastPoint.x, lastPoint.y, pointer.x, pointer.y
+          ], {
+            stroke: selectedColor,
+            strokeWidth: 2,
+            strokeDashArray: [5, 5],
+            selectable: false,
+            evented: false,
+            isTemporary: true,
+            opacity: 0.7
+          } as any);
+          
+          canvas.add(newPreviewLine);
+          previewLineRef.current = newPreviewLine;
+          canvas.renderAll();
         }
-        
-        // Create preview line from last point to current mouse position
-        const lastPoint = drawnPoints[drawnPoints.length - 1];
-        const newPreviewLine = new fabric.Line([
-          lastPoint.x, lastPoint.y, e.pointer.x, e.pointer.y
-        ], {
-          stroke: selectedColor,
-          strokeWidth: 2,
-          strokeDashArray: [5, 5],
-          selectable: false,
-          evented: false,
-          isTemporary: true,
-          opacity: 0.7
-        } as any);
-        
-        canvas.add(newPreviewLine);
-        setPreviewLine(newPreviewLine);
-        canvas.renderAll();
       };
       
       canvas.on('mouse:down', handleMouseDown);
@@ -185,35 +197,25 @@ export default function CanvasWorkspace({
       return () => {
         canvas.off('mouse:down', handleMouseDown);
         canvas.off('mouse:move', handleMouseMove);
-        
-        // Clean up preview line and temporary objects
-        if (previewLine) {
-          canvas.remove(previewLine);
-          setPreviewLine(null);
-        }
-        
-        // Remove all temporary drawing objects
-        const tempObjects = canvas.getObjects().filter(obj => (obj as any).isTemporary);
-        tempObjects.forEach(obj => canvas.remove(obj));
-        canvas.renderAll();
       };
     } else {
       setIsDrawing(false);
       setDrawnPoints([]);
+      drawnPointsRef.current = [];
       setShowSmoothingSlider(false);
       canvas.selection = true; // Re-enable object selection
       
-      // Clean up any temporary objects
-      if (previewLine) {
-        canvas.remove(previewLine);
-        setPreviewLine(null);
+      // Clean up any temporary objects when exiting draw mode
+      if (previewLineRef.current) {
+        canvas.remove(previewLineRef.current);
+        previewLineRef.current = null;
       }
       
       const tempObjects = canvas.getObjects().filter(obj => (obj as any).isTemporary);
       tempObjects.forEach(obj => canvas.remove(obj));
       canvas.renderAll();
     }
-  }, [isDrawMode, selectedColor, drawnPoints, previewLine]);
+  }, [isDrawMode, selectedColor]);
 
   const getShapePoints = (shape: string) => {
     switch (shape) {
@@ -390,9 +392,9 @@ export default function CanvasWorkspace({
     const tempObjects = canvas.getObjects().filter(obj => (obj as any).isTemporary);
     tempObjects.forEach(obj => canvas.remove(obj));
     
-    if (previewLine) {
-      canvas.remove(previewLine);
-      setPreviewLine(null);
+    if (previewLineRef.current) {
+      canvas.remove(previewLineRef.current);
+      previewLineRef.current = null;
     }
     
     canvas.renderAll();
@@ -467,6 +469,7 @@ export default function CanvasWorkspace({
     
     // Clean up drawing state
     setDrawnPoints([]);
+    drawnPointsRef.current = [];
     setShowSmoothingSlider(false);
     onDrawModeExit?.();
   };
@@ -487,20 +490,21 @@ export default function CanvasWorkspace({
   
   // Handle drawing controls
   const handleFinishDrawing = () => {
-    if (drawnPoints.length >= 3) {
+    if (drawnPointsRef.current.length >= 3) {
       setShowSmoothingSlider(true);
     }
   };
   
   const handleCreateSail = () => {
-    if (drawnPoints.length >= 3) {
-      createSailFromDrawnPath(drawnPoints, smoothingTolerance);
+    if (drawnPointsRef.current.length >= 3) {
+      createSailFromDrawnPath(drawnPointsRef.current, smoothingTolerance);
     }
   };
   
   const handleCancelDrawing = () => {
     cleanupDrawingObjects();
     setDrawnPoints([]);
+    drawnPointsRef.current = [];
     setShowSmoothingSlider(false);
     onDrawModeExit?.();
   };
