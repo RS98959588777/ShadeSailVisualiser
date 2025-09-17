@@ -604,7 +604,7 @@ export default function CanvasWorkspace({
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-muted/30 relative">
+    <div className="flex-1 flex flex-col bg-muted/30 relative overflow-hidden">
       {/* Canvas Controls */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
         <Button
@@ -725,12 +725,13 @@ export default function CanvasWorkspace({
       )}
 
       {/* Canvas Container */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="bg-background rounded-lg shadow-lg">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div className="bg-background rounded-lg shadow-lg max-w-full max-h-full">
           <canvas
             ref={canvasRef}
-            className="border border-border rounded-lg"
+            className="border border-border rounded-lg max-w-full max-h-full"
             data-testid="canvas-workspace"
+            style={{ maxWidth: '100%', maxHeight: '100%' }}
           />
         </div>
       </div>

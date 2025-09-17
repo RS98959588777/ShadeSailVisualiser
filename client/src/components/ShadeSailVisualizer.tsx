@@ -122,6 +122,8 @@ export default function ShadeSailVisualizer() {
     setSelectedShape('triangle');
     if (canvas) {
       canvas.clear();
+      // Manually ensure hasSail is reset since canvas.clear() might not fire events
+      setHasSail(false);
     }
     console.log('Workspace reset');
   };
@@ -187,7 +189,7 @@ export default function ShadeSailVisualizer() {
       
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {!uploadedImage ? (
             <ImageUploader
               onImageUpload={handleImageUpload}
