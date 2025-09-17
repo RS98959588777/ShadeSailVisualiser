@@ -76,6 +76,7 @@ export default function PostControls({
   };
 
   const selectedPost = posts.find(p => p.id === selectedPostId);
+  
 
   return (
     <div className="space-y-6">
@@ -132,9 +133,15 @@ export default function PostControls({
             {POST_COLORS.map((color) => (
               <button
                 key={color.value}
-                onClick={() => setSelectedColor(color.value)}
+                onClick={() => {
+                  // Update selected post if one exists, otherwise just set default color
+                  if (selectedPostId && postManager) {
+                    handleUpdateSelectedPost({ color: color.value });
+                  }
+                  setSelectedColor(color.value);
+                }}
                 className={`h-8 rounded border-2 transition-all hover-elevate ${
-                  selectedColor === color.value 
+                  (selectedPost ? selectedPost.color : selectedColor) === color.value 
                     ? 'border-primary ring-2 ring-primary/20' 
                     : 'border-border'
                 }`}
