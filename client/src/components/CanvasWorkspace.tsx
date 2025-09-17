@@ -444,6 +444,7 @@ export default function CanvasWorkspace({
     // Create curved path using existing utility
     const pathData = polygonToCurvedPath(simplifiedPoints, 0.08);
     
+    console.log('🎨 Creating custom sail with selectedColor:', selectedColor);
     const sail = new Path(pathData, {
       fill: selectedColor,
       stroke: selectedColor,

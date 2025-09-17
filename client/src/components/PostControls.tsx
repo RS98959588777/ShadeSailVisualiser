@@ -69,9 +69,13 @@ export default function PostControls({
   };
 
   const handleUpdateSelectedPost = (updates: Partial<PostSettings>) => {
+    console.log('🏗️ Post update requested:', updates, 'selectedPostId:', selectedPostId);
     if (postManager && selectedPostId) {
       postManager.updatePost(selectedPostId, updates);
       refreshPosts();
+      console.log('✅ Post updated');
+    } else {
+      console.log('❌ Cannot update post - postManager:', !!postManager, 'selectedPostId:', selectedPostId);
     }
   };
 

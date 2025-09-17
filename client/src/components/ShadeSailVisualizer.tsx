@@ -129,16 +129,21 @@ export default function ShadeSailVisualizer() {
   };
 
   const handleColorChange = (color: string) => {
+    console.log('🎨 Color change requested:', color, 'hasSail:', hasSail);
     setSelectedColor(color);
     // Update existing sail color if present  
     if (canvas && hasSail) {
       const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
+      console.log('Found', sails.length, 'sails to update');
       sails.forEach(sail => {
         sail.set('fill', color);
         sail.set('stroke', color);
         sail.set('cornerStrokeColor', color);
       });
       canvas.renderAll();
+      console.log('✅ Sail colors updated and canvas rendered');
+    } else {
+      console.log('❌ Cannot update sail colors - canvas:', !!canvas, 'hasSail:', hasSail);
     }
   };
 
