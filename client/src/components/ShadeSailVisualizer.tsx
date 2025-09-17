@@ -129,21 +129,16 @@ export default function ShadeSailVisualizer() {
   };
 
   const handleColorChange = (color: string) => {
-    console.log('handleColorChange called with color:', color);
     setSelectedColor(color);
     // Update existing sail color if present  
     if (canvas && hasSail) {
-      console.log('Updating sail colors on canvas');
       const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
-      console.log('Found sails:', sails.length);
       sails.forEach(sail => {
         sail.set('fill', color);
         sail.set('stroke', color);
         sail.set('cornerStrokeColor', color);
       });
       canvas.renderAll();
-    } else {
-      console.log('Canvas or hasSail not available:', { canvas: !!canvas, hasSail });
     }
   };
 
@@ -192,24 +187,6 @@ export default function ShadeSailVisualizer() {
         onReset={handleReset}
       />
       
-      {/* Debug section - temporary for debugging color issues */}
-      {uploadedImage && (
-        <div className="bg-red-100 p-2 text-xs">
-          <p>Debug: selectedColor = {selectedColor}</p>
-          <button 
-            onClick={() => handleColorChange('#FF0000')} 
-            className="bg-red-500 text-white px-2 py-1 mr-2"
-          >
-            Test Red
-          </button>
-          <button 
-            onClick={() => handleColorChange('#00FF00')} 
-            className="bg-green-500 text-white px-2 py-1"
-          >
-            Test Green
-          </button>
-        </div>
-      )}
       
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content Area */}

@@ -45,10 +45,7 @@ export default function ColorPalette({ selectedColor, onColorSelect }: ColorPale
                 h-auto p-3 flex flex-col gap-2 hover-elevate
                 ${isSelected ? 'ring-2 ring-primary' : ''}
               `}
-              onClick={() => {
-                console.log('Color button clicked:', color.value);
-                onColorSelect(color.value);
-              }}
+              onClick={() => onColorSelect(color.value)}
               data-testid={`color-${color.name.toLowerCase().replace(' ', '-')}`}
             >
               <div className="flex items-center gap-2 w-full">

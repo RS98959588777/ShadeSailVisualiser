@@ -69,7 +69,6 @@ export default function PostControls({
   };
 
   const handleUpdateSelectedPost = (updates: Partial<PostSettings>) => {
-    console.log('handleUpdateSelectedPost called:', { selectedPostId, updates, hasPostManager: !!postManager });
     if (postManager && selectedPostId) {
       postManager.updatePost(selectedPostId, updates);
       refreshPosts();
@@ -135,10 +134,8 @@ export default function PostControls({
               <button
                 key={color.value}
                 onClick={() => {
-                  console.log('Post color button clicked:', color.value, 'selectedPostId:', selectedPostId);
                   // Update selected post if one exists, otherwise just set default color
                   if (selectedPostId && postManager) {
-                    console.log('Updating selected post color');
                     handleUpdateSelectedPost({ color: color.value });
                   }
                   setSelectedColor(color.value);
