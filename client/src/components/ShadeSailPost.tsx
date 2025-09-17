@@ -22,6 +22,7 @@ export class ShadeSailPost {
 
   private createPost(): void {
     const { x, y, height, thickness, color } = this.settings;
+    console.log('🎨 Creating post visual with settings:', this.settings);
     
     // Create the main post cylinder with gradient for 3D effect
     const postBody = new Rect({
@@ -76,10 +77,13 @@ export class ShadeSailPost {
     (this.postGroup as any).postId = this.settings.id;
 
     this.canvas.add(this.postGroup);
+    console.log('➕ Post group added to canvas');
     
     // Bring post to front to ensure visibility over background images
     this.canvas.bringObjectToFront(this.postGroup);
+    console.log('📈 Post brought to front');
     this.canvas.renderAll();
+    console.log('🔄 Canvas rendered');
     
     // Add event listener for position updates when dragged
     this.postGroup.on('modified', () => {
@@ -204,9 +208,19 @@ export class PostManager {
     // Use canvas center if no position specified (using nullish coalescing to handle 0)
     const finalX = x ?? this.canvas.getWidth() / 2;
     const finalY = y ?? this.canvas.getHeight() / 2;
+    console.log('🏗️ PostManager adding post:', { 
+      id, 
+      finalX, 
+      finalY, 
+      height, 
+      thickness, 
+      color,
+      canvasSize: { width: this.canvas.getWidth(), height: this.canvas.getHeight() }
+    });
     const settings: PostSettings = { id, x: finalX, y: finalY, height, thickness, color };
     const post = new ShadeSailPost(this.canvas, settings);
     this.posts.set(id, post);
+    console.log('✅ Post created and stored, total posts now:', this.posts.size);
     return id;
   }
 
