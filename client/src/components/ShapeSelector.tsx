@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { PenTool } from "lucide-react";
 
 interface ShapeSelectorProps {
   selectedShape: string;
   onShapeSelect: (shape: string) => void;
+  onDrawModeToggle?: (enabled: boolean) => void;
+  isDrawMode?: boolean;
 }
 
 const SAIL_SHAPES = [
@@ -13,7 +16,12 @@ const SAIL_SHAPES = [
   { id: 'rectangle', name: 'Rectangle', description: 'Rectangular sail' },
 ];
 
-export default function ShapeSelector({ selectedShape, onShapeSelect }: ShapeSelectorProps) {
+export default function ShapeSelector({ 
+  selectedShape, 
+  onShapeSelect, 
+  onDrawModeToggle,
+  isDrawMode = false 
+}: ShapeSelectorProps) {
   return (
     <div className="space-y-4">
       <div>
@@ -24,16 +32,41 @@ export default function ShapeSelector({ selectedShape, onShapeSelect }: ShapeSel
       </div>
 
       <div className="space-y-2">
+        {/* Custom Drawing Option */}
+        <Button
+          variant={isDrawMode ? "default" : "outline"}
+          className="w-full h-auto p-3 flex flex-col gap-1 hover-elevate"
+          onClick={() => onDrawModeToggle?.(!isDrawMode)}
+          data-testid="shape-draw-custom"
+        >
+          <div className="font-medium text-sm flex items-center gap-2">
+            <PenTool className="w-4 h-4" />
+            Draw Custom Sail
+          </div>
+          <div className="text-xs opacity-75">
+            {isDrawMode ? "Click to exit drawing mode" : "Draw your own unique shape"}
+          </div>
+        </Button>
+
+        <Separator className="my-3" />
+
+        {/* Preset Shapes */}
         {SAIL_SHAPES.map((shape) => {
-          const isSelected = selectedShape === shape.id;
+          const isSelected = selectedShape === shape.id && !isDrawMode;
           
           return (
             <Button
               key={shape.id}
               variant={isSelected ? "default" : "outline"}
               className="w-full h-auto p-3 flex flex-col gap-1 hover-elevate"
-              onClick={() => onShapeSelect(shape.id)}
+              onClick={() => {
+                onShapeSelect(shape.id);
+                if (isDrawMode) {
+                  onDrawModeToggle?.(false);
+                }
+              }}
               data-testid={`shape-${shape.id}`}
+              disabled={isDrawMode}
             >
               <div className="font-medium text-sm">{shape.name}</div>
               <div className="text-xs opacity-75">{shape.description}</div>

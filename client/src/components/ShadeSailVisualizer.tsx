@@ -17,6 +17,7 @@ export default function ShadeSailVisualizer() {
   const [perspectiveTransform, setPerspectiveTransform] = useState<PerspectiveTransform | null>(null);
   const [postManager, setPostManager] = useState<PostManager | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [isDrawMode, setIsDrawMode] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [hasSail, setHasSail] = useState(false);
 
@@ -197,8 +198,10 @@ export default function ShadeSailVisualizer() {
               imageFile={uploadedImage}
               selectedColor={selectedColor}
               selectedShape={selectedShape}
+              isDrawMode={isDrawMode}
               onCanvasReady={setCanvas}
               onSailReady={setPerspectiveTransform}
+              onDrawModeExit={() => setIsDrawMode(false)}
             />
           )}
         </div>
@@ -218,6 +221,8 @@ export default function ShadeSailVisualizer() {
             postManager={postManager}
             selectedPostId={selectedPostId}
             onPostSelect={handlePostSelect}
+            isDrawMode={isDrawMode}
+            onDrawModeToggle={setIsDrawMode}
             isVisible={!!uploadedImage}
           />
         )}

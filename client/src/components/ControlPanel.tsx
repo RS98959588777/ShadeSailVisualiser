@@ -24,6 +24,8 @@ interface ControlPanelProps {
   postManager?: PostManager | null;
   selectedPostId?: string | null;
   onPostSelect?: (id: string | null) => void;
+  isDrawMode?: boolean;
+  onDrawModeToggle?: (enabled: boolean) => void;
   isVisible?: boolean;
 }
 
@@ -40,6 +42,8 @@ export default function ControlPanel({
   postManager,
   selectedPostId,
   onPostSelect,
+  isDrawMode = false,
+  onDrawModeToggle,
   isVisible = true
 }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState('color');
@@ -87,6 +91,8 @@ export default function ControlPanel({
             <ShapeSelector
               selectedShape={selectedShape}
               onShapeSelect={onShapeSelect}
+              isDrawMode={isDrawMode}
+              onDrawModeToggle={onDrawModeToggle}
             />
           </TabsContent>
 

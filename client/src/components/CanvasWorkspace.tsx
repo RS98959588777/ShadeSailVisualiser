@@ -1,23 +1,38 @@
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, FabricImage, Polygon, Point, Path } from 'fabric';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Canvas, FabricImage, Polygon, Point, Path, PencilBrush } from 'fabric';
+import { ZoomIn, ZoomOut, RotateCcw, Check, X, Brush } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { PerspectiveTransform } from './PerspectiveTransform';
 
 interface CanvasWorkspaceProps {
   imageFile?: File;
   selectedColor?: string;
   selectedShape?: string;
+  isDrawMode?: boolean;
   onCanvasReady?: (canvas: Canvas) => void;
   onSailReady?: (perspectiveTransform: PerspectiveTransform | null) => void;
+  onDrawModeExit?: () => void;
 }
 
-export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', selectedShape = 'triangle', onCanvasReady, onSailReady }: CanvasWorkspaceProps) {
+export default function CanvasWorkspace({ 
+  imageFile, 
+  selectedColor = '#2D4A40', 
+  selectedShape = 'triangle', 
+  isDrawMode = false,
+  onCanvasReady, 
+  onSailReady,
+  onDrawModeExit 
+}: CanvasWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const perspectiveTransformRef = useRef<PerspectiveTransform | null>(null);
   const [zoom, setZoom] = useState(1);
   const [hasSail, setHasSail] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawnPath, setDrawnPath] = useState<Point[] | null>(null);
+  const [showSmoothingSlider, setShowSmoothingSlider] = useState(false);
+  const [smoothingTolerance, setSmoothingTolerance] = useState(5);
 
   // Update existing sail color when selectedColor changes
   useEffect(() => {
@@ -77,6 +92,52 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     };
   }, [imageFile, onCanvasReady]);
 
+  // Handle drawing mode changes
+  useEffect(() => {
+    if (!fabricCanvasRef.current) return;
+
+    const canvas = fabricCanvasRef.current;
+    
+    if (isDrawMode) {
+      // Enable drawing mode
+      canvas.isDrawingMode = true;
+      const brush = new PencilBrush(canvas);
+      brush.width = 3;
+      brush.color = selectedColor;
+      canvas.freeDrawingBrush = brush;
+      setIsDrawing(true);
+
+      // Listen for path creation
+      const handlePathCreated = (e: any) => {
+        const path = e.path;
+        const pathPoints = extractPathPoints(path);
+        
+        // Remove the raw drawn path immediately
+        canvas.remove(path);
+        
+        // Store the points for processing
+        setDrawnPath(pathPoints);
+        setShowSmoothingSlider(true);
+        
+        // Disable drawing mode temporarily
+        canvas.isDrawingMode = false;
+        setIsDrawing(false);
+      };
+      
+      canvas.on('path:created', handlePathCreated);
+      
+      return () => {
+        canvas.off('path:created', handlePathCreated);
+      };
+    } else {
+      // Disable drawing mode
+      canvas.isDrawingMode = false;
+      setIsDrawing(false);
+      setDrawnPath(null);
+      setShowSmoothingSlider(false);
+    }
+  }, [isDrawMode, selectedColor]);
+
   const getShapePoints = (shape: string) => {
     switch (shape) {
       case 'triangle':
@@ -106,6 +167,64 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
           new Point(200, 250)
         ];
     }
+  };
+
+  // Ramer-Douglas-Peucker path simplification algorithm
+  const simplifyPath = (points: Point[], tolerance: number): Point[] => {
+    if (points.length <= 2) return points;
+
+    // Find the point with the maximum distance from the line segment
+    let maxDistance = 0;
+    let maxIndex = 0;
+    
+    const start = points[0];
+    const end = points[points.length - 1];
+    
+    for (let i = 1; i < points.length - 1; i++) {
+      const distance = perpendicularDistance(points[i], start, end);
+      if (distance > maxDistance) {
+        maxDistance = distance;
+        maxIndex = i;
+      }
+    }
+    
+    // If the maximum distance is greater than tolerance, recursively simplify
+    if (maxDistance > tolerance) {
+      const leftPart = simplifyPath(points.slice(0, maxIndex + 1), tolerance);
+      const rightPart = simplifyPath(points.slice(maxIndex), tolerance);
+      
+      // Remove the duplicate point at the connection
+      return leftPart.concat(rightPart.slice(1));
+    } else {
+      // If no point is far enough, return just the endpoints
+      return [start, end];
+    }
+  };
+
+  // Calculate perpendicular distance from point to line segment
+  const perpendicularDistance = (point: Point, lineStart: Point, lineEnd: Point): number => {
+    const dx = lineEnd.x - lineStart.x;
+    const dy = lineEnd.y - lineStart.y;
+    
+    if (dx === 0 && dy === 0) {
+      // Line segment is actually a point
+      const pointDx = point.x - lineStart.x;
+      const pointDy = point.y - lineStart.y;
+      return Math.sqrt(pointDx * pointDx + pointDy * pointDy);
+    }
+    
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const t = Math.max(0, Math.min(1, 
+      ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / (length * length)
+    ));
+    
+    const projectionX = lineStart.x + t * dx;
+    const projectionY = lineStart.y + t * dy;
+    
+    const distanceX = point.x - projectionX;
+    const distanceY = point.y - projectionY;
+    
+    return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
   };
 
   // Utility function to create curved sail path with 8% inward curve at edge midpoints
@@ -184,6 +303,134 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
     pathCommands.push('Z');
     
     return pathCommands.join(' ');
+  };
+
+  // Extract points from a Fabric.js Path object
+  const extractPathPoints = (path: Path): Point[] => {
+    const pathData = path.path;
+    const points: Point[] = [];
+    
+    if (!pathData) return points;
+    
+    // Sample points along the path at regular intervals
+    const sampleCount = Math.max(20, Math.min(100, pathData.length));
+    const stepSize = Math.max(1, Math.floor(pathData.length / sampleCount));
+    
+    for (let i = 0; i < pathData.length; i += stepSize) {
+      const command = pathData[i];
+      if (command && command.length >= 3) {
+        // Extract x, y coordinates (skip command type)
+        const x = command[command.length - 2];
+        const y = command[command.length - 1];
+        if (typeof x === 'number' && typeof y === 'number') {
+          points.push(new Point(x, y));
+        }
+      }
+    }
+    
+    return points;
+  };
+
+  // Create sail from drawn path
+  const createSailFromDrawnPath = (points: Point[], tolerance: number) => {
+    if (!fabricCanvasRef.current || !points || points.length < 3) return;
+
+    // Simplify the path
+    let simplifiedPoints = simplifyPath(points, tolerance);
+    
+    // Ensure minimum 3 points and maximum 12 for stability
+    if (simplifiedPoints.length < 3) {
+      console.warn('Not enough points to create a sail');
+      return;
+    }
+    
+    if (simplifiedPoints.length > 12) {
+      simplifiedPoints = simplifyPath(points, tolerance * 2); // Higher tolerance
+    }
+    
+    // Close the polygon by ensuring first and last points connect
+    const firstPoint = simplifiedPoints[0];
+    const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
+    const distanceToClose = Math.sqrt(
+      Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
+    );
+    
+    // If the path isn't already closed, close it
+    if (distanceToClose > tolerance) {
+      simplifiedPoints.push(new Point(firstPoint.x, firstPoint.y));
+    }
+    
+    // Calculate area to validate the shape
+    const area = calculatePolygonArea(simplifiedPoints);
+    if (area < 1000) {
+      console.warn('Shape too small to create a sail');
+      return;
+    }
+    
+    // Remove existing sails
+    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => 
+      obj.type === 'polygon' || obj.type === 'path' || (obj as any).isSail
+    );
+    existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
+    
+    // Create curved path using existing utility
+    const pathData = polygonToCurvedPath(simplifiedPoints, 0.08);
+    
+    const sail = new Path(pathData, {
+      fill: selectedColor,
+      stroke: selectedColor,
+      strokeWidth: 2,
+      opacity: 0.8,
+      cornerStyle: 'circle',
+      cornerSize: 8,
+      transparentCorners: false,
+      cornerColor: '#fff',
+      cornerStrokeColor: selectedColor,
+    });
+    
+    // Mark as sail for identification
+    (sail as any).isSail = true;
+    
+    fabricCanvasRef.current.add(sail);
+    fabricCanvasRef.current.setActiveObject(sail);
+    fabricCanvasRef.current.renderAll();
+    setHasSail(true);
+    
+    // Create perspective transform for the new sail
+    perspectiveTransformRef.current = new PerspectiveTransform(fabricCanvasRef.current, sail);
+    onSailReady?.(perspectiveTransformRef.current);
+    
+    // Clean up drawing state
+    setDrawnPath(null);
+    setShowSmoothingSlider(false);
+    onDrawModeExit?.();
+  };
+  
+  // Calculate polygon area (for validation)
+  const calculatePolygonArea = (points: Point[]): number => {
+    if (points.length < 3) return 0;
+    
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+      const j = (i + 1) % points.length;
+      area += points[i].x * points[j].y;
+      area -= points[j].x * points[i].y;
+    }
+    
+    return Math.abs(area / 2);
+  };
+  
+  // Handle drawing controls
+  const handleFinishDrawing = () => {
+    if (drawnPath) {
+      createSailFromDrawnPath(drawnPath, smoothingTolerance);
+    }
+  };
+  
+  const handleCancelDrawing = () => {
+    setDrawnPath(null);
+    setShowSmoothingSlider(false);
+    onDrawModeExit?.();
   };
 
   const addShadeSail = () => {
@@ -314,8 +561,64 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
         </Button>
       </div>
 
+      {/* Drawing Mode Overlay */}
+      {isDrawMode && (
+        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm rounded-lg p-3 shadow-lg border z-10">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+            <Brush className="w-4 h-4" />
+            {isDrawing ? 'Drawing Mode Active' : 'Drawing Mode'}
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {isDrawing 
+              ? 'Draw your custom shade sail shape'
+              : 'Click \"Draw Custom Sail\" to start drawing'
+            }
+          </p>
+          
+          {/* Drawing Controls */}
+          {drawnPath && showSmoothingSlider && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-foreground mb-1 block">
+                  Smoothing: {smoothingTolerance}px
+                </label>
+                <Slider
+                  value={[smoothingTolerance]}
+                  onValueChange={(value) => setSmoothingTolerance(value[0])}
+                  min={1}
+                  max={15}
+                  step={1}
+                  className="w-32"
+                  data-testid="slider-smoothing"
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleFinishDrawing}
+                  data-testid="button-finish-drawing"
+                >
+                  <Check className="w-3 h-3 mr-1" />
+                  Finish
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCancelDrawing}
+                  data-testid="button-cancel-drawing"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Add Sail Button */}
-      {imageFile && !hasSail && (
+      {imageFile && !hasSail && !isDrawMode && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
           <Button
             onClick={addShadeSail}
@@ -338,7 +641,7 @@ export default function CanvasWorkspace({ imageFile, selectedColor = '#2D4A40', 
       </div>
 
       {/* Instructions */}
-      {imageFile && hasSail && (
+      {imageFile && hasSail && !isDrawMode && (
         <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm p-3 rounded-lg border text-sm text-muted-foreground max-w-xs">
           Drag corners to resize • Click and drag to move • Use controls to zoom
         </div>
