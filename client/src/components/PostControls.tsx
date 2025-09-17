@@ -69,18 +69,13 @@ export default function PostControls({
   };
 
   const handleUpdateSelectedPost = (updates: Partial<PostSettings>) => {
-    console.log('🏗️ Post update requested:', updates, 'selectedPostId:', selectedPostId);
     if (postManager && selectedPostId) {
       postManager.updatePost(selectedPostId, updates);
       refreshPosts();
-      console.log('✅ Post updated');
-    } else {
-      console.log('❌ Cannot update post - postManager:', !!postManager, 'selectedPostId:', selectedPostId);
     }
   };
 
   const selectedPost = posts.find(p => p.id === selectedPostId);
-  
 
   return (
     <div className="space-y-6">
@@ -137,15 +132,9 @@ export default function PostControls({
             {POST_COLORS.map((color) => (
               <button
                 key={color.value}
-                onClick={() => {
-                  // Update selected post if one exists, otherwise just set default color
-                  if (selectedPostId && postManager) {
-                    handleUpdateSelectedPost({ color: color.value });
-                  }
-                  setSelectedColor(color.value);
-                }}
+                onClick={() => setSelectedColor(color.value)}
                 className={`h-8 rounded border-2 transition-all hover-elevate ${
-                  (selectedPost ? selectedPost.color : selectedColor) === color.value 
+                  selectedColor === color.value 
                     ? 'border-primary ring-2 ring-primary/20' 
                     : 'border-border'
                 }`}
