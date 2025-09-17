@@ -25,7 +25,7 @@ export default function ShadeSailVisualizer() {
   useEffect(() => {
     if (canvas) {
       const checkForSail = () => {
-        const sails = canvas.getObjects().filter(obj => obj.type === 'polygon');
+        const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
         setHasSail(sails.length > 0);
       };
       
@@ -128,15 +128,15 @@ export default function ShadeSailVisualizer() {
 
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    // Update active sail color if canvas exists
-    if (canvas) {
-      const activeObject = canvas.getActiveObject();
-      if (activeObject && activeObject.type === 'polygon') {
-        activeObject.set('fill', color);
-        activeObject.set('stroke', color);
-        activeObject.set('cornerStrokeColor', color);
-        canvas.renderAll();
-      }
+    // Update existing sail color if present  
+    if (canvas && hasSail) {
+      const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
+      sails.forEach(sail => {
+        sail.set('fill', color);
+        sail.set('stroke', color);
+        sail.set('cornerStrokeColor', color);
+      });
+      canvas.renderAll();
     }
   };
 
@@ -169,7 +169,7 @@ export default function ShadeSailVisualizer() {
     // If there's already a sail, recreate it with the new shape
     if (canvas && hasSail) {
       // Remove existing sails
-      const existingSails = canvas.getObjects().filter(obj => obj.type === 'polygon');
+      const existingSails = canvas.getObjects().filter(obj => (obj as any).isSail);
       existingSails.forEach(sail => canvas.remove(sail));
       
       // Add new sail with selected shape - this will be handled by the canvas component

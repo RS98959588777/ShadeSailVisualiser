@@ -37,13 +37,14 @@ export default function CanvasWorkspace({
   // Update existing sail color when selectedColor changes
   useEffect(() => {
     if (fabricCanvasRef.current && hasSail) {
-      const activeObject = fabricCanvasRef.current.getActiveObject();
-      if (activeObject && (activeObject.type === 'polygon' || activeObject.type === 'path' || (activeObject as any).isSail)) {
-        activeObject.set('fill', selectedColor);
-        activeObject.set('stroke', selectedColor);
-        activeObject.set('cornerStrokeColor', selectedColor);
-        fabricCanvasRef.current.renderAll();
-      }
+      // Find sail by isSail flag instead of relying on active object
+      const sails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
+      sails.forEach(sail => {
+        sail.set('fill', selectedColor);
+        sail.set('stroke', selectedColor);
+        sail.set('cornerStrokeColor', selectedColor);
+      });
+      fabricCanvasRef.current.renderAll();
     }
   }, [selectedColor, hasSail]);
 
@@ -368,9 +369,7 @@ export default function CanvasWorkspace({
     }
     
     // Remove existing sails
-    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => 
-      obj.type === 'polygon' || obj.type === 'path' || (obj as any).isSail
-    );
+    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
     existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
     
     // Create curved path using existing utility
@@ -437,9 +436,7 @@ export default function CanvasWorkspace({
     if (!fabricCanvasRef.current) return;
 
     // Remove existing sail if present
-    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => 
-      obj.type === 'polygon' || obj.type === 'path' || (obj as any).isSail
-    );
+    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
     existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
 
     // Create shade sail with selected shape and curved edges
