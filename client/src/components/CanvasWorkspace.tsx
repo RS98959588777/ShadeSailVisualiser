@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, FabricImage, Polygon, Point, Path, PencilBrush } from 'fabric';
+import * as fabric from 'fabric';
 import { ZoomIn, ZoomOut, RotateCcw, Check, X, Brush } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -30,7 +31,8 @@ export default function CanvasWorkspace({
   const [zoom, setZoom] = useState(1);
   const [hasSail, setHasSail] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [drawnPath, setDrawnPath] = useState<Point[] | null>(null);
+  const [drawnPoints, setDrawnPoints] = useState<Point[]>([]);
+  const [previewLine, setPreviewLine] = useState<fabric.Line | null>(null);
   const [showSmoothingSlider, setShowSmoothingSlider] = useState(false);
   const [smoothingTolerance, setSmoothingTolerance] = useState(5);
 
@@ -100,44 +102,118 @@ export default function CanvasWorkspace({
     const canvas = fabricCanvasRef.current;
     
     if (isDrawMode) {
-      // Enable drawing mode
-      canvas.isDrawingMode = true;
-      const brush = new PencilBrush(canvas);
-      brush.width = 3;
-      brush.color = selectedColor;
-      canvas.freeDrawingBrush = brush;
       setIsDrawing(true);
-
-      // Listen for path creation
-      const handlePathCreated = (e: any) => {
-        const path = e.path;
-        const pathPoints = extractPathPoints(path);
+      setDrawnPoints([]);
+      canvas.isDrawingMode = false; // Disable freehand drawing
+      canvas.selection = false; // Disable object selection during drawing
+      
+      // Handle mouse clicks to add points
+      const handleMouseDown = (e: any) => {
+        if (!e.pointer) return;
         
-        // Remove the raw drawn path immediately
-        canvas.remove(path);
+        const point = new Point(e.pointer.x, e.pointer.y);
         
-        // Store the points for processing
-        setDrawnPath(pathPoints);
-        setShowSmoothingSlider(true);
-        
-        // Disable drawing mode temporarily
-        canvas.isDrawingMode = false;
-        setIsDrawing(false);
+        setDrawnPoints(prevPoints => {
+          const newPoints = [...prevPoints, point];
+          
+          // Draw line from previous point to current point
+          if (newPoints.length > 1) {
+            const prevPoint = newPoints[newPoints.length - 2];
+            const line = new fabric.Line([
+              prevPoint.x, prevPoint.y, point.x, point.y
+            ], {
+              stroke: selectedColor,
+              strokeWidth: 2,
+              selectable: false,
+              evented: false,
+              isTemporary: true
+            } as any);
+            
+            canvas.add(line);
+            canvas.renderAll();
+          }
+          
+          // Add point marker
+          const circle = new fabric.Circle({
+            left: point.x - 3,
+            top: point.y - 3,
+            radius: 3,
+            fill: selectedColor,
+            selectable: false,
+            evented: false,
+            isTemporary: true
+          } as any);
+          
+          canvas.add(circle);
+          canvas.renderAll();
+          
+          return newPoints;
+        });
       };
       
-      canvas.on('path:created', handlePathCreated);
+      // Handle mouse move for preview line
+      const handleMouseMove = (e: any) => {
+        if (!e.pointer || drawnPoints.length === 0) return;
+        
+        // Remove previous preview line
+        if (previewLine) {
+          canvas.remove(previewLine);
+        }
+        
+        // Create preview line from last point to current mouse position
+        const lastPoint = drawnPoints[drawnPoints.length - 1];
+        const newPreviewLine = new fabric.Line([
+          lastPoint.x, lastPoint.y, e.pointer.x, e.pointer.y
+        ], {
+          stroke: selectedColor,
+          strokeWidth: 2,
+          strokeDashArray: [5, 5],
+          selectable: false,
+          evented: false,
+          isTemporary: true,
+          opacity: 0.7
+        } as any);
+        
+        canvas.add(newPreviewLine);
+        setPreviewLine(newPreviewLine);
+        canvas.renderAll();
+      };
+      
+      canvas.on('mouse:down', handleMouseDown);
+      canvas.on('mouse:move', handleMouseMove);
       
       return () => {
-        canvas.off('path:created', handlePathCreated);
+        canvas.off('mouse:down', handleMouseDown);
+        canvas.off('mouse:move', handleMouseMove);
+        
+        // Clean up preview line and temporary objects
+        if (previewLine) {
+          canvas.remove(previewLine);
+          setPreviewLine(null);
+        }
+        
+        // Remove all temporary drawing objects
+        const tempObjects = canvas.getObjects().filter(obj => (obj as any).isTemporary);
+        tempObjects.forEach(obj => canvas.remove(obj));
+        canvas.renderAll();
       };
     } else {
-      // Disable drawing mode
-      canvas.isDrawingMode = false;
       setIsDrawing(false);
-      setDrawnPath(null);
+      setDrawnPoints([]);
       setShowSmoothingSlider(false);
+      canvas.selection = true; // Re-enable object selection
+      
+      // Clean up any temporary objects
+      if (previewLine) {
+        canvas.remove(previewLine);
+        setPreviewLine(null);
+      }
+      
+      const tempObjects = canvas.getObjects().filter(obj => (obj as any).isTemporary);
+      tempObjects.forEach(obj => canvas.remove(obj));
+      canvas.renderAll();
     }
-  }, [isDrawMode, selectedColor]);
+  }, [isDrawMode, selectedColor, drawnPoints, previewLine]);
 
   const getShapePoints = (shape: string) => {
     switch (shape) {
@@ -306,30 +382,20 @@ export default function CanvasWorkspace({
     return pathCommands.join(' ');
   };
 
-  // Extract points from a Fabric.js Path object
-  const extractPathPoints = (path: Path): Point[] => {
-    const pathData = path.path;
-    const points: Point[] = [];
+  // Clean up temporary drawing objects
+  const cleanupDrawingObjects = () => {
+    if (!fabricCanvasRef.current) return;
     
-    if (!pathData) return points;
+    const canvas = fabricCanvasRef.current;
+    const tempObjects = canvas.getObjects().filter(obj => (obj as any).isTemporary);
+    tempObjects.forEach(obj => canvas.remove(obj));
     
-    // Sample points along the path at regular intervals
-    const sampleCount = Math.max(20, Math.min(100, pathData.length));
-    const stepSize = Math.max(1, Math.floor(pathData.length / sampleCount));
-    
-    for (let i = 0; i < pathData.length; i += stepSize) {
-      const command = pathData[i];
-      if (command && command.length >= 3) {
-        // Extract x, y coordinates (skip command type)
-        const x = command[command.length - 2];
-        const y = command[command.length - 1];
-        if (typeof x === 'number' && typeof y === 'number') {
-          points.push(new Point(x, y));
-        }
-      }
+    if (previewLine) {
+      canvas.remove(previewLine);
+      setPreviewLine(null);
     }
     
-    return points;
+    canvas.renderAll();
   };
 
   // Create sail from drawn path
@@ -400,7 +466,7 @@ export default function CanvasWorkspace({
     onSailReady?.(perspectiveTransformRef.current);
     
     // Clean up drawing state
-    setDrawnPath(null);
+    setDrawnPoints([]);
     setShowSmoothingSlider(false);
     onDrawModeExit?.();
   };
@@ -421,13 +487,20 @@ export default function CanvasWorkspace({
   
   // Handle drawing controls
   const handleFinishDrawing = () => {
-    if (drawnPath) {
-      createSailFromDrawnPath(drawnPath, smoothingTolerance);
+    if (drawnPoints.length >= 3) {
+      setShowSmoothingSlider(true);
+    }
+  };
+  
+  const handleCreateSail = () => {
+    if (drawnPoints.length >= 3) {
+      createSailFromDrawnPath(drawnPoints, smoothingTolerance);
     }
   };
   
   const handleCancelDrawing = () => {
-    setDrawnPath(null);
+    cleanupDrawingObjects();
+    setDrawnPoints([]);
     setShowSmoothingSlider(false);
     onDrawModeExit?.();
   };
@@ -567,13 +640,36 @@ export default function CanvasWorkspace({
           </div>
           <p className="text-xs text-muted-foreground mb-3">
             {isDrawing 
-              ? 'Draw your custom shade sail shape'
-              : 'Click \"Draw Custom Sail\" to start drawing'
+              ? `Click to add points (${drawnPoints.length} points added)`
+              : 'Click points to create straight edges'
             }
           </p>
           
           {/* Drawing Controls */}
-          {drawnPath && showSmoothingSlider && (
+          {drawnPoints.length >= 3 && !showSmoothingSlider && (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleFinishDrawing}
+                data-testid="button-finish-drawing"
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Finish Shape
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCancelDrawing}
+                data-testid="button-cancel-drawing"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Cancel
+              </Button>
+            </div>
+          )}
+          
+          {/* Smoothing Slider Controls */}
+          {showSmoothingSlider && (
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium text-foreground mb-1 block">
@@ -593,11 +689,11 @@ export default function CanvasWorkspace({
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  onClick={handleFinishDrawing}
-                  data-testid="button-finish-drawing"
+                  onClick={handleCreateSail}
+                  data-testid="button-create-sail"
                 >
                   <Check className="w-3 h-3 mr-1" />
-                  Finish
+                  Create Sail
                 </Button>
                 <Button
                   size="sm"
