@@ -199,6 +199,7 @@ export default function ShadeSailVisualizer() {
               selectedColor={selectedColor}
               selectedShape={selectedShape}
               isDrawMode={isDrawMode}
+              hasSail={hasSail}
               onCanvasReady={setCanvas}
               onSailReady={setPerspectiveTransform}
               onDrawModeExit={() => setIsDrawMode(false)}

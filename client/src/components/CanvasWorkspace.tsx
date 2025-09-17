@@ -11,6 +11,7 @@ interface CanvasWorkspaceProps {
   selectedColor?: string;
   selectedShape?: string;
   isDrawMode?: boolean;
+  hasSail?: boolean;
   onCanvasReady?: (canvas: Canvas) => void;
   onSailReady?: (perspectiveTransform: PerspectiveTransform | null) => void;
   onDrawModeExit?: () => void;
@@ -21,6 +22,7 @@ export default function CanvasWorkspace({
   selectedColor = '#2D4A40', 
   selectedShape = 'triangle', 
   isDrawMode = false,
+  hasSail = false,
   onCanvasReady, 
   onSailReady,
   onDrawModeExit 
@@ -29,7 +31,6 @@ export default function CanvasWorkspace({
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const perspectiveTransformRef = useRef<PerspectiveTransform | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [hasSail, setHasSail] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnPoints, setDrawnPoints] = useState<Point[]>([]);
   const previewLineRef = useRef<fabric.Line | null>(null);
@@ -461,7 +462,6 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
-    setHasSail(true);
     
     // Create perspective transform for the new sail
     perspectiveTransformRef.current = new PerspectiveTransform(fabricCanvasRef.current, sail);
@@ -538,7 +538,6 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
-    setHasSail(true);
 
     // Create perspective transform for the new sail
     perspectiveTransformRef.current = new PerspectiveTransform(fabricCanvasRef.current, sail);
@@ -576,7 +575,6 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.clear();
     setZoom(1);
     fabricCanvasRef.current.setZoom(1);
-    setHasSail(false);
     
     // Reload image if available
     if (imageFile) {
