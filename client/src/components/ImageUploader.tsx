@@ -1,11 +1,18 @@
 import { useDropzone } from 'react-dropzone';
 import { Upload, Image as ImageIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import sampleImage from '@assets/generated_images/outdoor_backyard_test_scene_f0c508ac.png';
 
 interface ImageUploaderProps {
   onImageUpload: (file: File) => void;
   isUploading?: boolean;
 }
+
+const loadSampleImage = async (): Promise<File> => {
+  const response = await fetch(sampleImage);
+  const blob = await response.blob();
+  return new File([blob], 'sample-backyard.jpg', { type: 'image/jpeg' });
+};
 
 export default function ImageUploader({ onImageUpload, isUploading = false }: ImageUploaderProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -61,15 +68,35 @@ export default function ImageUploader({ onImageUpload, isUploading = false }: Im
             </p>
           </div>
           
-          <Button 
-            variant="outline" 
-            size="sm"
-            disabled={isUploading}
-            data-testid="button-browse"
-          >
-            <ImageIcon className="w-4 h-4 mr-2" />
-            Browse Files
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={isUploading}
+              data-testid="button-browse"
+            >
+              <ImageIcon className="w-4 h-4 mr-2" />
+              Browse Files
+            </Button>
+            
+            <Button 
+              variant="secondary" 
+              size="sm"
+              disabled={isUploading}
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const file = await loadSampleImage();
+                  onImageUpload(file);
+                } catch (error) {
+                  console.error('Failed to load sample image:', error);
+                }
+              }}
+              data-testid="button-sample"
+            >
+              Use Sample
+            </Button>
+          </div>
         </div>
       </div>
     </div>
