@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Palette, Move, RotateCw, Shapes, Move3D, Pilcrow } from 'lucide-react';
+import { Settings, Palette, RotateCw, Shapes, Move3D, Pilcrow } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
@@ -68,15 +68,12 @@ export default function ControlPanel({
         </h2>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="shape" className="text-xs" data-testid="tab-shape">
               <Shapes className="w-4 h-4" />
             </TabsTrigger>
             <TabsTrigger value="color" className="text-xs" data-testid="tab-color">
               <Palette className="w-4 h-4" />
-            </TabsTrigger>
-            <TabsTrigger value="position" className="text-xs" data-testid="tab-position">
-              <Move className="w-4 h-4" />
             </TabsTrigger>
             <TabsTrigger value="posts" className="text-xs" data-testid="tab-posts">
               <Pilcrow className="w-4 h-4" />
@@ -100,67 +97,6 @@ export default function ControlPanel({
             />
           </TabsContent>
 
-          <TabsContent value="position" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Position Controls</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => console.log('Move up')}
-                    data-testid="button-move-up"
-                  >
-                    ↑ Up
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => console.log('Move down')}
-                    data-testid="button-move-down"
-                  >
-                    ↓ Down
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => console.log('Move left')}
-                    data-testid="button-move-left"
-                  >
-                    ← Left
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => console.log('Move right')}
-                    data-testid="button-move-right"
-                  >
-                    → Right
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium text-foreground mb-3">Rotation</h4>
-                <div className="space-y-2">
-                  <Slider
-                    value={[rotation]}
-                    onValueChange={(value) => onRotationChange(value[0])}
-                    min={0}
-                    max={360}
-                    step={5}
-                    className="w-full"
-                    data-testid="slider-rotation"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>0°</span>
-                    <span className="font-medium">{rotation}°</span>
-                    <span>360°</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
 
           <TabsContent value="posts" className="space-y-4">
             <PostControls
