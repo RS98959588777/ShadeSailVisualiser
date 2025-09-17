@@ -145,8 +145,10 @@ export class ShadeSailPost {
     // Restore selection if the post was previously selected
     if (wasSelected && this.postGroup) {
       this.canvas.setActiveObject(this.postGroup);
-      this.canvas.requestRenderAll();
     }
+    
+    // Always render the canvas to show changes
+    this.canvas.renderAll();
   }
 
   public removePost(): void {
