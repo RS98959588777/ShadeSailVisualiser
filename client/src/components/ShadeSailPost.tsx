@@ -11,7 +11,7 @@ export interface PostSettings {
 
 export class ShadeSailPost {
   private canvas: Canvas;
-  private postGroup: Group | null = null;
+  private postGroup: Group | Rect | null = null;
   private settings: PostSettings;
 
   constructor(canvas: Canvas, settings: PostSettings) {
@@ -22,76 +22,39 @@ export class ShadeSailPost {
 
   private createPost(): void {
     const { x, y, height, thickness, color } = this.settings;
-    console.log('🎨 Creating post visual with settings:', this.settings);
     
-    // Create the main post cylinder with gradient for 3D effect
-    const postBody = new Rect({
-      left: 0,
-      top: 0,
-      width: thickness,
-      height: height,
-      fill: this.create3DGradient(color),
-      stroke: this.getDarkerShade(color, 0.3),
-      strokeWidth: 1,
-      rx: thickness * 0.1, // Slight rounding for realism
-      ry: thickness * 0.1
-    });
-
-    // Create the top cap for 3D appearance
-    const topCap = new Ellipse({
-      left: thickness / 2,
-      top: -thickness / 4,
-      rx: thickness / 2,
-      ry: thickness / 4,
-      fill: this.getLighterShade(color, 0.2),
-      stroke: this.getDarkerShade(color, 0.2),
-      strokeWidth: 1,
-      originX: 'center',
-      originY: 'center'
-    });
-
-    // Create shadow for depth
-    const shadow = new Rect({
-      left: thickness * 0.3,
-      top: height * 0.1,
-      width: thickness * 0.8,
-      height: height * 0.9,
-      fill: 'rgba(0, 0, 0, 0.2)',
-      rx: thickness * 0.08,
-      ry: thickness * 0.08,
-      selectable: false,
-      evented: false
-    });
-
-    // Group all post elements
-    this.postGroup = new Group([shadow, postBody, topCap], {
+    // Create a simple filled rectangle - no groups, no complexity
+    this.postGroup = new Rect({
       left: x,
       top: y,
+      width: thickness,
+      height: height,
+      fill: color,
+      stroke: '#000000',
+      strokeWidth: 2,
       selectable: true,
       hasControls: true,
-      hasBorders: true,
-      lockRotation: false
-    });
+      hasBorders: true
+    }) as any; // Cast to any since we're treating Rect as Group for simplicity
     
     // Store the id as a custom property
     (this.postGroup as any).postId = this.settings.id;
 
-    this.canvas.add(this.postGroup);
-    console.log('➕ Post group added to canvas');
-    
-    // Bring post to front to ensure visibility over background images
-    this.canvas.bringObjectToFront(this.postGroup);
-    console.log('📈 Post brought to front');
-    this.canvas.renderAll();
-    console.log('🔄 Canvas rendered');
-    
-    // Add event listener for position updates when dragged
-    this.postGroup.on('modified', () => {
-      if (this.postGroup) {
-        this.settings.x = this.postGroup.left || 0;
-        this.settings.y = this.postGroup.top || 0;
-      }
-    });
+    if (this.postGroup) {
+      this.canvas.add(this.postGroup);
+      
+      // Bring post to front to ensure visibility over background images
+      this.canvas.bringObjectToFront(this.postGroup);
+      this.canvas.renderAll();
+      
+      // Add event listener for position updates when dragged
+      this.postGroup.on('modified', () => {
+        if (this.postGroup) {
+          this.settings.x = this.postGroup.left || 0;
+          this.settings.y = this.postGroup.top || 0;
+        }
+      });
+    }
   }
 
   private create3DGradient(baseColor: string): any {
@@ -164,7 +127,7 @@ export class ShadeSailPost {
     }
   }
 
-  public getPost(): Group | null {
+  public getPost(): Group | Rect | null {
     return this.postGroup;
   }
 
@@ -208,19 +171,9 @@ export class PostManager {
     // Use canvas center if no position specified (using nullish coalescing to handle 0)
     const finalX = x ?? this.canvas.getWidth() / 2;
     const finalY = y ?? this.canvas.getHeight() / 2;
-    console.log('🏗️ PostManager adding post:', { 
-      id, 
-      finalX, 
-      finalY, 
-      height, 
-      thickness, 
-      color,
-      canvasSize: { width: this.canvas.getWidth(), height: this.canvas.getHeight() }
-    });
     const settings: PostSettings = { id, x: finalX, y: finalY, height, thickness, color };
     const post = new ShadeSailPost(this.canvas, settings);
     this.posts.set(id, post);
-    console.log('✅ Post created and stored, total posts now:', this.posts.size);
     return id;
   }
 

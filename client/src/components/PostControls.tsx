@@ -44,7 +44,6 @@ export default function PostControls({
   };
 
   const handleAddPost = () => {
-    console.log('🏗️ Add Post button clicked', { hasPostManager: !!postManager });
     if (postManager) {
       // Add post at canvas center (PostManager will calculate dynamically)
       const newPostId = postManager.addPost(
@@ -54,12 +53,8 @@ export default function PostControls({
         selectedThickness,
         selectedColor
       );
-      console.log('📍 Post created with ID:', newPostId);
       onPostSelect(newPostId);
       refreshPosts();
-      console.log('🔄 Posts refreshed, total posts:', postManager.getAllPosts().length);
-    } else {
-      console.log('❌ No PostManager available');
     }
   };
 
