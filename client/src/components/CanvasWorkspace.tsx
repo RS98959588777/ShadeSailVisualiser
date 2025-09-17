@@ -442,7 +442,7 @@ export default function CanvasWorkspace({
     existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
     
     // Create curved path using existing utility
-    const pathData = polygonToCurvedPath(simplifiedPoints, 0.08);
+    const pathData = polygonToCurvedPath(simplifiedPoints, 0.05);
     
     const sail = new Path(pathData, {
       fill: selectedColor,
@@ -518,7 +518,7 @@ export default function CanvasWorkspace({
 
     // Create shade sail with selected shape and curved edges
     const points = getShapePoints(selectedShape);
-    const pathData = polygonToCurvedPath(points, 0.08); // 8% curve depth
+    const pathData = polygonToCurvedPath(points, 0.05); // 5% curve depth
 
     const sail = new Path(pathData, {
       fill: selectedColor,
