@@ -77,6 +77,10 @@ export class ShadeSailPost {
 
     this.canvas.add(this.postGroup);
     
+    // Bring post to front to ensure visibility over background images
+    this.canvas.bringObjectToFront(this.postGroup);
+    this.canvas.renderAll();
+    
     // Add event listener for position updates when dragged
     this.postGroup.on('modified', () => {
       if (this.postGroup) {
