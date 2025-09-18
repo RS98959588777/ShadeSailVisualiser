@@ -9,7 +9,7 @@ import { PostManager } from './ShadeSailPost';
 
 export default function ShadeSailVisualizer() {
   const [uploadedImage, setUploadedImage] = useState<File | undefined>();
-  const [selectedColor, setSelectedColor] = useState('#2D4A40');
+  const [selectedColor, setSelectedColor] = useState('#36454F');
   const [opacity, setOpacity] = useState(80);
   const [rotation, setRotation] = useState(0);
   const [selectedShape, setSelectedShape] = useState('triangle');

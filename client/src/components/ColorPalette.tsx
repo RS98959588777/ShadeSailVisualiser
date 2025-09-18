@@ -13,27 +13,43 @@ interface ColorPaletteProps {
 }
 
 const SHADE_SAIL_COLORS: ColorOption[] = [
-  { name: 'Charcoal', value: '#404040', description: 'Classic dark gray' },
-  { name: 'Sand', value: '#C4A678', description: 'Warm beige tone' },
-  { name: 'Forest Green', value: '#2D4A40', description: 'Natural green' },
-  { name: 'Terracotta', value: '#B85C3E', description: 'Warm earth tone' },
-  { name: 'Cream', value: '#F4F1E8', description: 'Light neutral' },
-  { name: 'Navy', value: '#2C3E50', description: 'Deep blue' },
-  { name: 'Rust', value: '#8B4513', description: 'Warm brown' },
-  { name: 'Sage', value: '#87A96B', description: 'Soft green' },
+  { name: 'Cinnamon', value: '#D2691E', description: 'UVR Block: 94.4%' },
+  { name: 'Desert Sand', value: '#EDC9AF', description: 'UVR Block: 97%' },
+  { name: 'Silver Grey', value: '#C0C0C0', description: 'UVR Block: 97%' },
+  { name: 'Charcoal', value: '#36454F', description: 'UVR Block: 96%' },
+  { name: 'Black', value: '#000000', description: 'UVR Block: 99%' },
+  { name: 'Ice White', value: '#F8F8FF', description: 'UVR Block: 83.3%' },
+  { name: 'Navy Blue', value: '#000080', description: 'UVR Block: 93%' },
+  { name: 'Laguna Blue', value: '#4682B4', description: 'UVR Block: 93%' },
+  { name: 'Royal Blue', value: '#4169E1', description: 'UVR Block: 95%' },
+  { name: 'Turquoise', value: '#40E0D0', description: 'UVR Block: 92%' },
+  { name: 'Rainforest Green', value: '#228B22', description: 'UVR Block: 98%' },
+  { name: 'Eucalyptus', value: '#7DD3C0', description: 'UVR Block: 93.8%' },
+  { name: 'Olive', value: '#808000', description: 'UVR Block: 95.1%' },
+  { name: 'Gumleaf', value: '#6B8E23', description: 'UVR Block: 98%' },
+  { name: 'Red Earth', value: '#CC5500', description: 'UVR Block: 96.7%' },
+  { name: 'Terracotta', value: '#E2725B', description: 'UVR Block: 87%' },
+  { name: 'Rust Gold', value: '#B7410E', description: 'UVR Block: 88%' },
+  { name: 'Chocolate', value: '#7B3F00', description: 'UVR Block: 95%' },
+  { name: 'Mulberry', value: '#C54B8C', description: 'UVR Block: 94%' },
+  { name: 'Sunflower Yellow', value: '#FFDA03', description: 'UVR Block: 94.7%' },
+  { name: 'Zesty Lime', value: '#32CD32', description: 'UVR Block: 91.7%' },
+  { name: 'Electric Purple', value: '#8A2BE2', description: 'UVR Block: 90.5%' },
+  { name: 'Atomic Orange', value: '#FF6600', description: 'UVR Block: 92.7%' },
+  { name: 'Sunset Red', value: '#FF4500', description: 'UVR Block: 93%' },
 ];
 
 export default function ColorPalette({ selectedColor, onColorSelect }: ColorPaletteProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="font-medium text-foreground mb-2">Shade Sail Colors</h3>
+        <h3 className="font-medium text-foreground mb-2">Z16 Shade Sail Colors</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Choose from our range of high-quality fabric colors
+          Choose from Rainbow Shade's complete Z16 designer color range
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         {SHADE_SAIL_COLORS.map((color) => {
           const isSelected = selectedColor === color.value;
           
@@ -78,7 +94,7 @@ export default function ColorPalette({ selectedColor, onColorSelect }: ColorPale
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          UV-resistant fabric with 95% sun protection
+          Z16 UV-resistant fabric with up to 99% UV protection
         </p>
       </div>
     </div>
