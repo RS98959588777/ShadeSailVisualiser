@@ -33,6 +33,9 @@ export default function CanvasWorkspace({
   const drawnPointsRef = useRef<Point[]>([]);
   const [showSmoothingSlider, setShowSmoothingSlider] = useState(false);
   const [smoothingTolerance, setSmoothingTolerance] = useState(5);
+  const [showEdgeSelection, setShowEdgeSelection] = useState(false);
+  const [curvedEdges, setCurvedEdges] = useState<boolean[]>([]);
+  const [finalDrawnPoints, setFinalDrawnPoints] = useState<Point[]>([]);
 
   // Update existing sail color when selectedColor changes
   useEffect(() => {
@@ -121,10 +124,37 @@ export default function CanvasWorkspace({
             Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
           );
           
-          // If clicked close to first point (within 15 pixels), auto-complete with smoothing 5
+          // If clicked close to first point (within 15 pixels), show edge selection
           if (distanceToFirst <= 15) {
-            // Automatically create the sail with smoothing value of 5
-            createSailFromDrawnPath(drawnPointsRef.current, 5);
+            // Simplify the path BEFORE showing edge selection to ensure mapping alignment
+            let simplifiedPoints = simplifyPath(drawnPointsRef.current, 5);
+            
+            // Ensure minimum 3 points for a valid shape
+            if (simplifiedPoints.length < 3) {
+              console.warn('Not enough points to create a sail');
+              return;
+            }
+            
+            // Don't duplicate the first point - path generator handles closure with 'Z'
+            const firstPoint = simplifiedPoints[0];
+            const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
+            const distanceToClose = Math.sqrt(
+              Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
+            );
+            
+            // If path is already effectively closed, don't add duplicate point
+            if (distanceToClose > 5 && simplifiedPoints.length > 3) {
+              // Path isn't closed, but we don't need to add the first point again
+              // The 'Z' command in SVG path will handle the closure
+            }
+            
+            // Set final points to the simplified polygon
+            setFinalDrawnPoints(simplifiedPoints);
+            setShowEdgeSelection(true);
+            // Initialize all edges as curved by default, matching simplified polygon length
+            setCurvedEdges(new Array(simplifiedPoints.length).fill(true));
+            // Clean up temporary drawing objects
+            cleanupDrawingObjects();
             return;
           }
         }
@@ -246,7 +276,12 @@ export default function CanvasWorkspace({
       tempObjects.forEach(obj => canvas.remove(obj));
       canvas.renderAll();
     }
-  }, [isDrawMode, selectedColor]);
+    
+    // Disable canvas interactions during edge selection
+    if (showEdgeSelection) {
+      canvas.selection = false; // Disable object selection during edge selection
+    }
+  }, [isDrawMode, selectedColor, showEdgeSelection]);
 
   const getShapePoints = (shape: string) => {
     switch (shape) {
@@ -415,6 +450,88 @@ export default function CanvasWorkspace({
     return pathCommands.join(' ');
   };
 
+  // Utility function to create mixed straight/curved sail path
+  const polygonToMixedPath = (points: Point[], curvedEdges: boolean[], sagRatio: number = 0.05): string => {
+    if (points.length < 3) return '';
+
+    // Calculate polygon centroid for inward direction
+    const centroid = points.reduce(
+      (sum, p) => ({ x: sum.x + p.x, y: sum.y + p.y }), 
+      { x: 0, y: 0 }
+    );
+    centroid.x /= points.length;
+    centroid.y /= points.length;
+
+    const pathCommands: (string | number)[] = [];
+    
+    // Start with move command to first point
+    pathCommands.push('M', points[0].x, points[0].y);
+
+    // Create edges (either straight or curved based on selection)
+    for (let i = 0; i < points.length; i++) {
+      const currentPoint = points[i];
+      const nextPoint = points[(i + 1) % points.length];
+      const shouldCurve = curvedEdges[i] || false;
+      
+      // Calculate edge vector and properties
+      const edgeVector = { x: nextPoint.x - currentPoint.x, y: nextPoint.y - currentPoint.y };
+      const edgeLength = Math.sqrt(edgeVector.x * edgeVector.x + edgeVector.y * edgeVector.y);
+      
+      // Skip if edge is too short
+      if (edgeLength < 1) continue;
+      
+      if (shouldCurve) {
+        // Create curved edge using quadratic bezier
+        const midpoint = {
+          x: (currentPoint.x + nextPoint.x) / 2,
+          y: (currentPoint.y + nextPoint.y) / 2
+        };
+        
+        // Calculate unit tangent vector
+        const unitTangent = { x: edgeVector.x / edgeLength, y: edgeVector.y / edgeLength };
+        
+        // Calculate normal vectors (perpendicular to edge)
+        const normal1 = { x: -unitTangent.y, y: unitTangent.x };  // 90° counterclockwise
+        const normal2 = { x: unitTangent.y, y: -unitTangent.x };  // 90° clockwise
+        
+        // Choose inward normal (the one that points toward centroid)
+        const towardCentroid1 = {
+          x: (midpoint.x + normal1.x) - centroid.x,
+          y: (midpoint.y + normal1.y) - centroid.y
+        };
+        const towardCentroid2 = {
+          x: (midpoint.x + normal2.x) - centroid.x,
+          y: (midpoint.y + normal2.y) - centroid.y
+        };
+        
+        const dist1 = towardCentroid1.x * towardCentroid1.x + towardCentroid1.y * towardCentroid1.y;
+        const dist2 = towardCentroid2.x * towardCentroid2.x + towardCentroid2.y * towardCentroid2.y;
+        
+        const inwardNormal = dist1 < dist2 ? normal1 : normal2;
+        
+        // Calculate curve depth
+        const curveDepth = edgeLength * sagRatio;
+        
+        // Calculate control point for quadratic bezier
+        const controlPoint = {
+          x: midpoint.x + 2 * curveDepth * inwardNormal.x,
+          y: midpoint.y + 2 * curveDepth * inwardNormal.y
+        };
+        
+        // Add quadratic curve command
+        pathCommands.push('Q', controlPoint.x, controlPoint.y, nextPoint.x, nextPoint.y);
+      } else {
+        // Create straight edge
+        pathCommands.push('L', nextPoint.x, nextPoint.y);
+      }
+    }
+    
+    // Close the path
+    pathCommands.push('Z');
+    
+    return pathCommands.join(' ');
+  };
+
   // Clean up temporary drawing objects
   const cleanupDrawingObjects = () => {
     if (!fabricCanvasRef.current) return;
@@ -471,7 +588,7 @@ export default function CanvasWorkspace({
     const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
     existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
     
-    // Create curved path using existing utility
+    // Create curved path using consistent sag ratio
     const pathData = polygonToCurvedPath(simplifiedPoints, 0.05);
     
     const sail = new Path(pathData, {
@@ -514,6 +631,55 @@ export default function CanvasWorkspace({
     return Math.abs(area / 2);
   };
   
+  // Create sail from drawn path with mixed edges
+  const createSailWithMixedEdges = (points: Point[], curvedEdges: boolean[]) => {
+    if (!fabricCanvasRef.current || !points || points.length < 3) return;
+
+    // Points are already simplified - use them as-is to preserve edge mapping
+    const finalPoints = points;
+    
+    // Calculate area to validate the shape
+    const area = calculatePolygonArea(finalPoints);
+    if (area < 1000) {
+      console.warn('Shape too small to create a sail');
+      return;
+    }
+    
+    // Remove existing sails
+    const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
+    existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
+    
+    // Use curvedEdges array as-is since it matches the final points
+    const pathData = polygonToMixedPath(finalPoints, curvedEdges, 0.05);
+    
+    const sail = new Path(pathData, {
+      fill: selectedColor,
+      stroke: selectedColor,
+      strokeWidth: 2,
+      opacity: 0.8,
+      cornerStyle: 'circle',
+      cornerSize: 8,
+      transparentCorners: false,
+      cornerColor: '#fff',
+      cornerStrokeColor: selectedColor,
+    });
+    
+    // Mark as sail for identification
+    (sail as any).isSail = true;
+    
+    fabricCanvasRef.current.add(sail);
+    fabricCanvasRef.current.setActiveObject(sail);
+    fabricCanvasRef.current.renderAll();
+    
+    // Clean up edge selection state
+    setShowEdgeSelection(false);
+    setFinalDrawnPoints([]);
+    setCurvedEdges([]);
+    setDrawnPoints([]);
+    drawnPointsRef.current = [];
+    onDrawModeExit?.();
+  };
+
   // Handle drawing controls
   const handleFinishDrawing = () => {
     if (drawnPointsRef.current.length >= 3) {
@@ -532,7 +698,30 @@ export default function CanvasWorkspace({
     setDrawnPoints([]);
     drawnPointsRef.current = [];
     setShowSmoothingSlider(false);
+    setShowEdgeSelection(false);
+    setFinalDrawnPoints([]);
+    setCurvedEdges([]);
     onDrawModeExit?.();
+  };
+
+  // Handle edge selection
+  const handleCreateSailWithEdges = () => {
+    if (finalDrawnPoints.length >= 3) {
+      createSailWithMixedEdges(finalDrawnPoints, curvedEdges);
+    }
+  };
+
+  const handleCancelEdgeSelection = () => {
+    setShowEdgeSelection(false);
+    setFinalDrawnPoints([]);
+    setCurvedEdges([]);
+    onDrawModeExit?.();
+  };
+
+  const toggleEdgeCurve = (edgeIndex: number) => {
+    const newCurvedEdges = [...curvedEdges];
+    newCurvedEdges[edgeIndex] = !newCurvedEdges[edgeIndex];
+    setCurvedEdges(newCurvedEdges);
   };
 
   const addShadeSail = () => {
@@ -724,6 +913,60 @@ export default function CanvasWorkspace({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edge Selection Overlay */}
+      {showEdgeSelection && (
+        <div className="absolute top-4 left-4 bg-background/90 backdrop-blur-sm rounded-lg p-4 shadow-lg border z-10">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+            <Brush className="w-4 h-4" />
+            Customize Sail Edges
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            Choose which edges should be straight or curved. Click on edge numbers to toggle between straight and curved.
+          </p>
+          
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 max-w-sm">
+              {finalDrawnPoints.map((_, index) => {
+                const edgeNum = index + 1;
+                const isCurved = curvedEdges[index];
+                return (
+                  <Button
+                    key={index}
+                    size="sm"
+                    variant={isCurved ? "default" : "outline"}
+                    onClick={() => toggleEdgeCurve(index)}
+                    className="text-xs"
+                    data-testid={`edge-toggle-${index}`}
+                  >
+                    Edge {edgeNum}: {isCurved ? 'Curved' : 'Straight'}
+                  </Button>
+                );
+              })}
+            </div>
+            
+            <div className="flex gap-2 pt-2 border-t">
+              <Button
+                size="sm"
+                onClick={handleCreateSailWithEdges}
+                data-testid="button-create-custom-sail"
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Create Sail
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCancelEdgeSelection}
+                data-testid="button-cancel-edge-selection"
+              >
+                <X className="w-3 h-3 mr-1" />
+                Cancel
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
