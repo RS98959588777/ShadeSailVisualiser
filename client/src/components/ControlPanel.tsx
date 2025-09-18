@@ -42,7 +42,7 @@ export default function ControlPanel({
   onDrawModeToggle,
   isVisible = true
 }: ControlPanelProps) {
-  const [activeTab, setActiveTab] = useState('color');
+  const [activeTab, setActiveTab] = useState('posts');
   // Use lifted post selection state or fallback to local state
   const [localSelectedPostId, setLocalSelectedPostId] = useState<string | null>(null);
   const currentSelectedPostId = selectedPostId !== undefined ? selectedPostId : localSelectedPostId;
@@ -62,16 +62,24 @@ export default function ControlPanel({
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="posts" className="text-xs" data-testid="tab-posts">
+              <Pilcrow className="w-4 h-4" />
+            </TabsTrigger>
             <TabsTrigger value="shape" className="text-xs" data-testid="tab-shape">
               <Shapes className="w-4 h-4" />
             </TabsTrigger>
             <TabsTrigger value="color" className="text-xs" data-testid="tab-color">
               <Palette className="w-4 h-4" />
             </TabsTrigger>
-            <TabsTrigger value="posts" className="text-xs" data-testid="tab-posts">
-              <Pilcrow className="w-4 h-4" />
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="posts" className="space-y-4">
+            <PostControls
+              postManager={postManager || null}
+              selectedPostId={currentSelectedPostId}
+              onPostSelect={currentOnPostSelect}
+            />
+          </TabsContent>
 
           <TabsContent value="shape" className="space-y-4">
             <ShapeSelector
@@ -86,15 +94,6 @@ export default function ControlPanel({
             <ColorPalette
               selectedColor={selectedColor}
               onColorSelect={onColorSelect}
-            />
-          </TabsContent>
-
-
-          <TabsContent value="posts" className="space-y-4">
-            <PostControls
-              postManager={postManager || null}
-              selectedPostId={currentSelectedPostId}
-              onPostSelect={currentOnPostSelect}
             />
           </TabsContent>
 
