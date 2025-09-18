@@ -64,13 +64,13 @@ export default function ColorPalette({ selectedColor, onColorSelect }: ColorPale
               onClick={() => onColorSelect(color.value)}
               data-testid={`color-${color.name.toLowerCase().replace(' ', '-')}`}
             >
-              <div className="flex items-center gap-2 w-full">
+              <div className="flex items-center gap-3 w-full">
                 <div
-                  className="w-8 h-8 rounded-md border border-border flex items-center justify-center"
+                  className="w-12 h-12 rounded-md border border-border flex items-center justify-center"
                   style={{ backgroundColor: color.value }}
                 >
                   {isSelected && (
-                    <Check className="w-4 h-4 text-white drop-shadow-sm" />
+                    <Check className="w-5 h-5 text-white drop-shadow-sm" />
                   )}
                 </div>
                 <div className="text-left flex-1">
