@@ -34,7 +34,7 @@ export default function PostControls({
 }: PostControlsProps) {
   const [posts, setPosts] = useState<PostSettings[]>([]);
   const [selectedHeight, setSelectedHeight] = useState(200);
-  const [selectedThickness, setSelectedThickness] = useState(20);
+  const [selectedThickness, setSelectedThickness] = useState(15);
   const [selectedColor, setSelectedColor] = useState('#36454F');
 
   const refreshPosts = () => {

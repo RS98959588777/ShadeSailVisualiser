@@ -143,7 +143,7 @@ export class PostManager {
     this.canvas = canvas;
   }
 
-  public addPost(x?: number, y?: number, height: number = 200, thickness: number = 20, color: string = '#8B4513'): string {
+  public addPost(x?: number, y?: number, height: number = 200, thickness: number = 15, color: string = '#36454F'): string {
     const id = `post-${this.nextId++}`;
     // Use canvas center if no position specified (using nullish coalescing to handle 0)
     const finalX = x ?? this.canvas.getWidth() / 2;
