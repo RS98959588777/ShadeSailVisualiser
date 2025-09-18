@@ -20,11 +20,11 @@ interface PostControlsProps {
 }
 
 const POST_COLORS = [
-  { name: 'Brown Wood', value: '#8B4513', description: 'Natural wood brown' },
-  { name: 'Dark Steel', value: '#2F4F4F', description: 'Industrial steel gray' },
-  { name: 'White PVC', value: '#F5F5F5', description: 'Clean white finish' },
-  { name: 'Black Metal', value: '#1C1C1C', description: 'Modern black metal' },
-  { name: 'Bronze', value: '#CD7F32', description: 'Elegant bronze finish' }
+  { name: 'Charcoal', value: '#36454F', description: 'Charcoal finish' },
+  { name: 'Black', value: '#000000', description: 'Black finish' },
+  { name: 'Off White', value: '#FAF0E6', description: 'Off white finish' },
+  { name: 'Cream', value: '#FFFDD0', description: 'Cream finish' },
+  { name: 'Galvanised', value: '#71797E', description: 'Galvanised steel grey' }
 ];
 
 export default function PostControls({
@@ -35,7 +35,7 @@ export default function PostControls({
   const [posts, setPosts] = useState<PostSettings[]>([]);
   const [selectedHeight, setSelectedHeight] = useState(200);
   const [selectedThickness, setSelectedThickness] = useState(20);
-  const [selectedColor, setSelectedColor] = useState('#8B4513');
+  const [selectedColor, setSelectedColor] = useState('#36454F');
 
   const refreshPosts = () => {
     if (postManager) {
