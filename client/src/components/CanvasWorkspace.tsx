@@ -36,6 +36,8 @@ export default function CanvasWorkspace({
   const [showEdgeSelection, setShowEdgeSelection] = useState(false);
   const [curvedEdges, setCurvedEdges] = useState<boolean[]>([]);
   const [finalDrawnPoints, setFinalDrawnPoints] = useState<Point[]>([]);
+  const [customSailPoints, setCustomSailPoints] = useState<Point[]>([]);
+  const [isCustomSail, setIsCustomSail] = useState(false);
 
   // Update existing sail color when selectedColor changes
   useEffect(() => {
@@ -124,37 +126,10 @@ export default function CanvasWorkspace({
             Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
           );
           
-          // If clicked close to first point (within 15 pixels), show edge selection
+          // If clicked close to first point (within 15 pixels), create sail immediately
           if (distanceToFirst <= 15) {
-            // Simplify the path BEFORE showing edge selection to ensure mapping alignment
-            let simplifiedPoints = simplifyPath(drawnPointsRef.current, 5);
-            
-            // Ensure minimum 3 points for a valid shape
-            if (simplifiedPoints.length < 3) {
-              console.warn('Not enough points to create a sail');
-              return;
-            }
-            
-            // Don't duplicate the first point - path generator handles closure with 'Z'
-            const firstPoint = simplifiedPoints[0];
-            const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
-            const distanceToClose = Math.sqrt(
-              Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
-            );
-            
-            // If path is already effectively closed, don't add duplicate point
-            if (distanceToClose > 5 && simplifiedPoints.length > 3) {
-              // Path isn't closed, but we don't need to add the first point again
-              // The 'Z' command in SVG path will handle the closure
-            }
-            
-            // Set final points to the simplified polygon
-            setFinalDrawnPoints(simplifiedPoints);
-            setShowEdgeSelection(true);
-            // Initialize all edges as curved by default, matching simplified polygon length
-            setCurvedEdges(new Array(simplifiedPoints.length).fill(true));
-            // Clean up temporary drawing objects
-            cleanupDrawingObjects();
+            // Create sail immediately with all curved edges
+            createSailFromDrawnPath(drawnPointsRef.current, smoothingTolerance);
             return;
           }
         }
@@ -565,17 +540,8 @@ export default function CanvasWorkspace({
       simplifiedPoints = simplifyPath(points, tolerance * 2); // Higher tolerance
     }
     
-    // Close the polygon by ensuring first and last points connect
-    const firstPoint = simplifiedPoints[0];
-    const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
-    const distanceToClose = Math.sqrt(
-      Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
-    );
-    
-    // If the path isn't already closed, close it
-    if (distanceToClose > tolerance) {
-      simplifiedPoints.push(new Point(firstPoint.x, firstPoint.y));
-    }
+    // Don't duplicate the first point - rely on SVG 'Z' command for closure
+    // This ensures edge mapping stays accurate for customization
     
     // Calculate area to validate the shape
     const area = calculatePolygonArea(simplifiedPoints);
@@ -609,6 +575,11 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
+    
+    // Store custom sail information for post-creation editing (no duplicated first point)
+    setCustomSailPoints(simplifiedPoints);
+    setIsCustomSail(true);
+    setCurvedEdges(new Array(simplifiedPoints.length).fill(true));
     
     // Clean up drawing state
     setDrawnPoints([]);
@@ -704,6 +675,51 @@ export default function CanvasWorkspace({
     onDrawModeExit?.();
   };
 
+  // Handle post-creation edge customization
+  const handleCustomizeEdges = () => {
+    if (customSailPoints.length >= 3) {
+      setFinalDrawnPoints(customSailPoints);
+      setShowEdgeSelection(true);
+    }
+  };
+
+  const handleUpdateSailEdges = () => {
+    if (finalDrawnPoints.length >= 3) {
+      // Remove existing custom sail
+      const existingSails = fabricCanvasRef.current?.getObjects().filter(obj => (obj as any).isSail);
+      existingSails?.forEach(sail => fabricCanvasRef.current!.remove(sail));
+      
+      // Create new sail with updated edge preferences
+      const pathData = polygonToMixedPath(finalDrawnPoints, curvedEdges, 0.05);
+      
+      const sail = new Path(pathData, {
+        fill: selectedColor,
+        stroke: selectedColor,
+        strokeWidth: 2,
+        opacity: 0.8,
+        cornerStyle: 'circle',
+        cornerSize: 8,
+        transparentCorners: false,
+        cornerColor: '#fff',
+        cornerStrokeColor: selectedColor,
+      });
+      
+      // Mark as sail for identification
+      (sail as any).isSail = true;
+      
+      fabricCanvasRef.current?.add(sail);
+      fabricCanvasRef.current?.setActiveObject(sail);
+      fabricCanvasRef.current?.renderAll();
+      
+      // Update stored preferences
+      setCurvedEdges([...curvedEdges]);
+      
+      // Clean up edge selection state
+      setShowEdgeSelection(false);
+      setFinalDrawnPoints([]);
+    }
+  };
+
   // Handle edge selection
   const handleCreateSailWithEdges = () => {
     if (finalDrawnPoints.length >= 3) {
@@ -714,7 +730,6 @@ export default function CanvasWorkspace({
   const handleCancelEdgeSelection = () => {
     setShowEdgeSelection(false);
     setFinalDrawnPoints([]);
-    setCurvedEdges([]);
     onDrawModeExit?.();
   };
 
@@ -753,6 +768,11 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
+    
+    // Reset custom sail state for predefined shapes
+    setIsCustomSail(false);
+    setCustomSailPoints([]);
+    setCurvedEdges([]);
   };
 
   const handleZoomIn = () => {
@@ -779,6 +799,11 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.clear();
     setZoom(1);
     fabricCanvasRef.current.setZoom(1);
+    
+    // Reset custom sail state
+    setIsCustomSail(false);
+    setCustomSailPoints([]);
+    setCurvedEdges([]);
     
     // Reload image if available
     if (imageFile) {
@@ -950,11 +975,11 @@ export default function CanvasWorkspace({
             <div className="flex gap-2 pt-2 border-t">
               <Button
                 size="sm"
-                onClick={handleCreateSailWithEdges}
+                onClick={isCustomSail ? handleUpdateSailEdges : handleCreateSailWithEdges}
                 data-testid="button-create-custom-sail"
               >
                 <Check className="w-3 h-3 mr-1" />
-                Create Sail
+                {isCustomSail ? 'Update Sail' : 'Create Sail'}
               </Button>
               <Button
                 size="sm"
@@ -978,6 +1003,19 @@ export default function CanvasWorkspace({
             data-testid="button-add-sail"
           >
             Add Shade Sail
+          </Button>
+        </div>
+      )}
+
+      {/* Customize Edges Button - shows after custom sail is created */}
+      {imageFile && hasSail && isCustomSail && !isDrawMode && !showEdgeSelection && (
+        <div className="absolute bottom-4 right-4 z-10">
+          <Button
+            onClick={handleCustomizeEdges}
+            variant="outline"
+            data-testid="button-customize-edges"
+          >
+            Customize Edges
           </Button>
         </div>
       )}
