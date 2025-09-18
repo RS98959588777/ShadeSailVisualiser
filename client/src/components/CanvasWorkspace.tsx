@@ -4,7 +4,6 @@ import * as fabric from 'fabric';
 import { ZoomIn, ZoomOut, RotateCcw, Check, X, Brush } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { PerspectiveTransform } from './PerspectiveTransform';
 
 interface CanvasWorkspaceProps {
   imageFile?: File;
@@ -13,7 +12,6 @@ interface CanvasWorkspaceProps {
   isDrawMode?: boolean;
   hasSail?: boolean;
   onCanvasReady?: (canvas: Canvas) => void;
-  onSailReady?: (perspectiveTransform: PerspectiveTransform | null) => void;
   onDrawModeExit?: () => void;
 }
 
@@ -24,12 +22,10 @@ export default function CanvasWorkspace({
   isDrawMode = false,
   hasSail = false,
   onCanvasReady, 
-  onSailReady,
   onDrawModeExit 
 }: CanvasWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
-  const perspectiveTransformRef = useRef<PerspectiveTransform | null>(null);
   const [zoom, setZoom] = useState(1);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnPoints, setDrawnPoints] = useState<Point[]>([]);
@@ -497,10 +493,6 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
     
-    // Create perspective transform for the new sail
-    perspectiveTransformRef.current = new PerspectiveTransform(fabricCanvasRef.current, sail);
-    onSailReady?.(perspectiveTransformRef.current);
-    
     // Clean up drawing state
     setDrawnPoints([]);
     drawnPointsRef.current = [];
@@ -572,10 +564,6 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
-
-    // Create perspective transform for the new sail
-    perspectiveTransformRef.current = new PerspectiveTransform(fabricCanvasRef.current, sail);
-    onSailReady?.(perspectiveTransformRef.current);
   };
 
   const handleZoomIn = () => {
@@ -598,13 +586,6 @@ export default function CanvasWorkspace({
 
   const resetCanvas = () => {
     if (!fabricCanvasRef.current) return;
-    
-    // Clean up perspective transform
-    if (perspectiveTransformRef.current) {
-      perspectiveTransformRef.current.removeAnchorControls();
-      perspectiveTransformRef.current = null;
-      onSailReady?.(null);
-    }
     
     fabricCanvasRef.current.clear();
     setZoom(1);

@@ -4,7 +4,6 @@ import Header from './Header';
 import ImageUploader from './ImageUploader';
 import CanvasWorkspace from './CanvasWorkspace';
 import ControlPanel from './ControlPanel';
-import { PerspectiveTransform } from './PerspectiveTransform';
 import { PostManager } from './ShadeSailPost';
 
 export default function ShadeSailVisualizer() {
@@ -14,7 +13,6 @@ export default function ShadeSailVisualizer() {
   const [rotation, setRotation] = useState(0);
   const [selectedShape, setSelectedShape] = useState('triangle');
   const [canvas, setCanvas] = useState<Canvas | null>(null);
-  const [perspectiveTransform, setPerspectiveTransform] = useState<PerspectiveTransform | null>(null);
   const [postManager, setPostManager] = useState<PostManager | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isDrawMode, setIsDrawMode] = useState(false);
@@ -203,7 +201,6 @@ export default function ShadeSailVisualizer() {
               isDrawMode={isDrawMode}
               hasSail={hasSail}
               onCanvasReady={setCanvas}
-              onSailReady={setPerspectiveTransform}
               onDrawModeExit={() => setIsDrawMode(false)}
             />
           )}
@@ -220,7 +217,6 @@ export default function ShadeSailVisualizer() {
             onRotationChange={handleRotationChange}
             selectedShape={selectedShape}
             onShapeSelect={handleShapeChange}
-            perspectiveTransform={perspectiveTransform}
             postManager={postManager}
             selectedPostId={selectedPostId}
             onPostSelect={handlePostSelect}
