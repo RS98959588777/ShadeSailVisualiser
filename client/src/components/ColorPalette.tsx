@@ -49,7 +49,7 @@ export default function ColorPalette({ selectedColor, onColorSelect }: ColorPale
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         {SHADE_SAIL_COLORS.map((color) => {
           const isSelected = selectedColor === color.value;
           
