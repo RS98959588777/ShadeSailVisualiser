@@ -11,7 +11,7 @@ export interface PostSettings {
 
 export class ShadeSailPost {
   private canvas: Canvas;
-  private postGroup: Group | Rect | null = null;
+  private postGroup: Group | Rect | Ellipse | null = null;
   private settings: PostSettings;
 
   constructor(canvas: Canvas, settings: PostSettings) {
@@ -23,19 +23,22 @@ export class ShadeSailPost {
   private createPost(): void {
     const { x, y, height, thickness, color } = this.settings;
     
-    // Create a simple filled rectangle - no groups, no complexity
-    this.postGroup = new Rect({
+    // Create a realistic cylindrical steel post using Ellipse
+    // Create metallic gradient for realistic steel appearance
+    const metallicGradient = `linear-gradient(90deg, ${this.getDarkerShade(color, 0.3)}, ${this.getLighterShade(color, 0.4)}, ${color}, ${this.getDarkerShade(color, 0.2)}, ${this.getDarkerShade(color, 0.4)})`;
+
+    this.postGroup = new Ellipse({
       left: x,
       top: y,
-      width: thickness,
-      height: height,
-      fill: color,
-      stroke: '#000000',
-      strokeWidth: 2,
+      rx: thickness / 2, // radius x (half of thickness for circular cross-section)
+      ry: height / 2,    // radius y (half of height for vertical cylinder)
+      fill: color, // Use solid color for now, gradient can be added later if needed
+      stroke: '#505050',
+      strokeWidth: 1,
       selectable: true,
       hasControls: true,
       hasBorders: true
-    }) as any; // Cast to any since we're treating Rect as Group for simplicity
+    }) as any;
     
     // Store the id as a custom property
     (this.postGroup as any).postId = this.settings.id;
@@ -48,12 +51,13 @@ export class ShadeSailPost {
       this.canvas.renderAll();
       
       // Add event listener for position updates when dragged
-      this.postGroup.on('modified', () => {
+      const updatePosition = () => {
         if (this.postGroup) {
           this.settings.x = this.postGroup.left || 0;
           this.settings.y = this.postGroup.top || 0;
         }
-      });
+      };
+      (this.postGroup as any).on('modified', updatePosition);
     }
   }
 
@@ -127,7 +131,7 @@ export class ShadeSailPost {
     }
   }
 
-  public getPost(): Group | Rect | null {
+  public getPost(): Group | Rect | Ellipse | null {
     return this.postGroup;
   }
 
@@ -166,7 +170,7 @@ export class PostManager {
     this.canvas = canvas;
   }
 
-  public addPost(x?: number, y?: number, height: number = 200, thickness: number = 20, color: string = '#8B4513'): string {
+  public addPost(x?: number, y?: number, height: number = 200, thickness: number = 40, color: string = '#A0A0A0'): string {
     const id = `post-${this.nextId++}`;
     // Use canvas center if no position specified (using nullish coalescing to handle 0)
     const finalX = x ?? this.canvas.getWidth() / 2;
