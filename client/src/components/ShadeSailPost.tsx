@@ -11,7 +11,7 @@ export interface PostSettings {
 
 export class ShadeSailPost {
   private canvas: Canvas;
-  private postGroup: Group | Rect | null = null;
+  private postRect: Rect | null = null;
   private settings: PostSettings;
 
   constructor(canvas: Canvas, settings: PostSettings) {
@@ -23,67 +23,44 @@ export class ShadeSailPost {
   private createPost(): void {
     const { x, y, height, thickness, color } = this.settings;
     
-    // Create a simple filled rectangle - no groups, no complexity
-    this.postGroup = new Rect({
+    // Create a clean square post with subtle styling
+    this.postRect = new Rect({
       left: x,
       top: y,
       width: thickness,
       height: height,
       fill: color,
-      stroke: '#000000',
-      strokeWidth: 2,
+      stroke: this.getDarkerShade(color, 0.2), // Subtle darker outline
+      strokeWidth: 1, // Thinner, cleaner stroke
       selectable: true,
       hasControls: true,
-      hasBorders: true
-    }) as any; // Cast to any since we're treating Rect as Group for simplicity
+      hasBorders: true,
+      cornerStyle: 'rect', // Square corners for crisp look
+      transparentCorners: false
+    });
     
     // Store the id as a custom property
-    (this.postGroup as any).postId = this.settings.id;
+    (this.postRect as any).postId = this.settings.id;
 
-    if (this.postGroup) {
-      this.canvas.add(this.postGroup);
+    if (this.postRect) {
+      this.canvas.add(this.postRect);
       
       // Bring post to front to ensure visibility over background images
-      this.canvas.bringObjectToFront(this.postGroup);
+      this.canvas.bringObjectToFront(this.postRect);
       this.canvas.renderAll();
       
       // Add event listener for position updates when dragged
-      this.postGroup.on('modified', () => {
-        if (this.postGroup) {
-          this.settings.x = this.postGroup.left || 0;
-          this.settings.y = this.postGroup.top || 0;
+      this.postRect.on('modified', () => {
+        if (this.postRect) {
+          this.settings.x = this.postRect.left || 0;
+          this.settings.y = this.postRect.top || 0;
         }
       });
     }
   }
 
-  private create3DGradient(baseColor: string): any {
-    const lightShade = this.getLighterShade(baseColor, 0.3);
-    const darkShade = this.getDarkerShade(baseColor, 0.3);
-
-    return new Gradient({
-      type: 'linear',
-      coords: { x1: 0, y1: 0, x2: this.settings.thickness, y2: 0 },
-      colorStops: [
-        { offset: 0, color: lightShade },
-        { offset: 0.3, color: baseColor },
-        { offset: 0.7, color: baseColor },
-        { offset: 1, color: darkShade }
-      ]
-    });
-  }
-
-  private getLighterShade(color: string, factor: number): string {
-    // Convert hex to RGB, lighten, and convert back
-    const hex = color.replace('#', '');
-    const r = Math.min(255, parseInt(hex.substr(0, 2), 16) + Math.round(255 * factor));
-    const g = Math.min(255, parseInt(hex.substr(2, 2), 16) + Math.round(255 * factor));
-    const b = Math.min(255, parseInt(hex.substr(4, 2), 16) + Math.round(255 * factor));
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-  }
-
   private getDarkerShade(color: string, factor: number): string {
-    // Convert hex to RGB, darken, and convert back
+    // Convert hex to RGB, darken, and convert back for cleaner outline
     const hex = color.replace('#', '');
     const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - Math.round(255 * factor));
     const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - Math.round(255 * factor));
@@ -97,10 +74,10 @@ export class ShadeSailPost {
     let currentTop = this.settings.y;
     let wasSelected = false;
     
-    if (this.postGroup) {
-      currentLeft = this.postGroup.left || this.settings.x;
-      currentTop = this.postGroup.top || this.settings.y;
-      wasSelected = this.canvas.getActiveObject() === this.postGroup;
+    if (this.postRect) {
+      currentLeft = this.postRect.left || this.settings.x;
+      currentTop = this.postRect.top || this.settings.y;
+      wasSelected = this.canvas.getActiveObject() === this.postRect;
     }
     
     this.settings = { 
@@ -114,21 +91,21 @@ export class ShadeSailPost {
     this.createPost();
     
     // Restore selection if the post was previously selected
-    if (wasSelected && this.postGroup) {
-      this.canvas.setActiveObject(this.postGroup);
+    if (wasSelected && this.postRect) {
+      this.canvas.setActiveObject(this.postRect);
       this.canvas.requestRenderAll();
     }
   }
 
   public removePost(): void {
-    if (this.postGroup) {
-      this.canvas.remove(this.postGroup);
-      this.postGroup = null;
+    if (this.postRect) {
+      this.canvas.remove(this.postRect);
+      this.postRect = null;
     }
   }
 
-  public getPost(): Group | Rect | null {
-    return this.postGroup;
+  public getPost(): Rect | null {
+    return this.postRect;
   }
 
   public getSettings(): PostSettings {
@@ -136,8 +113,8 @@ export class ShadeSailPost {
   }
 
   public setPosition(x: number, y: number): void {
-    if (this.postGroup) {
-      this.postGroup.set({ left: x, top: y });
+    if (this.postRect) {
+      this.postRect.set({ left: x, top: y });
       this.settings.x = x;
       this.settings.y = y;
       this.canvas.renderAll();
@@ -216,11 +193,11 @@ export class PostManager {
   public selectPost(id: string): void {
     const post = this.posts.get(id);
     if (post) {
-      const postGroup = post.getPost();
-      if (postGroup) {
+      const postRect = post.getPost();
+      if (postRect) {
         // Bring to front for better visibility if overlapping
-        this.canvas.bringObjectToFront(postGroup);
-        this.canvas.setActiveObject(postGroup);
+        this.canvas.bringObjectToFront(postRect);
+        this.canvas.setActiveObject(postRect);
         this.canvas.requestRenderAll();
       }
     }
