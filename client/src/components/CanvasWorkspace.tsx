@@ -118,6 +118,21 @@ export default function CanvasWorkspace({
         
         const point = new Point(pointer.x, pointer.y);
         
+        // Check if we're close to the first point (auto-complete the shape)
+        if (drawnPointsRef.current.length >= 3) {
+          const firstPoint = drawnPointsRef.current[0];
+          const distanceToFirst = Math.sqrt(
+            Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
+          );
+          
+          // If clicked close to first point (within 15 pixels), auto-complete with smoothing 5
+          if (distanceToFirst <= 15) {
+            // Automatically create the sail with smoothing value of 5
+            createSailFromDrawnPath(drawnPointsRef.current, 5);
+            return;
+          }
+        }
+        
         // Update both state and ref
         const newPoints = [...drawnPointsRef.current, point];
         drawnPointsRef.current = newPoints;
@@ -162,28 +177,47 @@ export default function CanvasWorkspace({
         
         const lastPoint = drawnPointsRef.current[drawnPointsRef.current.length - 1];
         
+        // Check if we're hovering near the first point (for auto-completion visual feedback)
+        let isNearFirstPoint = false;
+        let previewEndPoint = { x: pointer.x, y: pointer.y };
+        
+        if (drawnPointsRef.current.length >= 3) {
+          const firstPoint = drawnPointsRef.current[0];
+          const distanceToFirst = Math.sqrt(
+            Math.pow(pointer.x - firstPoint.x, 2) + Math.pow(pointer.y - firstPoint.y, 2)
+          );
+          
+          if (distanceToFirst <= 15) {
+            isNearFirstPoint = true;
+            previewEndPoint = { x: firstPoint.x, y: firstPoint.y };
+          }
+        }
+        
         // Update or create preview line
         if (previewLineRef.current) {
           // Update existing preview line coordinates
           previewLineRef.current.set({
             x1: lastPoint.x,
             y1: lastPoint.y,
-            x2: pointer.x,
-            y2: pointer.y
+            x2: previewEndPoint.x,
+            y2: previewEndPoint.y,
+            stroke: isNearFirstPoint ? '#00ff00' : selectedColor,  // Green when near first point
+            strokeWidth: isNearFirstPoint ? 3 : 2,  // Thicker line when near first point
+            opacity: isNearFirstPoint ? 1 : 0.7
           });
           canvas.renderAll();
         } else {
           // Create new preview line
           const newPreviewLine = new fabric.Line([
-            lastPoint.x, lastPoint.y, pointer.x, pointer.y
+            lastPoint.x, lastPoint.y, previewEndPoint.x, previewEndPoint.y
           ], {
-            stroke: selectedColor,
-            strokeWidth: 2,
+            stroke: isNearFirstPoint ? '#00ff00' : selectedColor,
+            strokeWidth: isNearFirstPoint ? 3 : 2,
             strokeDashArray: [5, 5],
             selectable: false,
             evented: false,
             isTemporary: true,
-            opacity: 0.7
+            opacity: isNearFirstPoint ? 1 : 0.7
           } as any);
           
           canvas.add(newPreviewLine);
@@ -642,7 +676,7 @@ export default function CanvasWorkspace({
           </div>
           <p className="text-xs text-muted-foreground mb-3">
             {isDrawing 
-              ? `Click to add points (${drawnPoints.length} points added)`
+              ? `Click to add points (${drawnPoints.length} points added). Click near first point to auto-complete.`
               : 'Click points to create straight edges'
             }
           </p>
