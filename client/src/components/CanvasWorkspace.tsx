@@ -41,19 +41,8 @@ export default function CanvasWorkspace({
   const [sailCount, setSailCount] = useState(0); // Track actual sail count
   const [selectedSailId, setSelectedSailId] = useState<string | null>(null); // Track selected sail
 
-  // Update existing sail color when selectedColor changes
-  useEffect(() => {
-    if (fabricCanvasRef.current && hasSail) {
-      // Find sail by isSail flag instead of relying on active object
-      const sails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
-      sails.forEach(sail => {
-        sail.set('fill', selectedColor);
-        sail.set('stroke', selectedColor);
-        sail.set('cornerStrokeColor', selectedColor);
-      });
-      fabricCanvasRef.current.renderAll();
-    }
-  }, [selectedColor, hasSail]);
+  // Individual sail coloring is now handled by ShadeSailVisualizer.handleColorChange()
+  // This global update was causing all sails to change color when selecting different sails
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -627,6 +616,7 @@ export default function CanvasWorkspace({
     // Mark as sail for identification and store configuration
     (sail as any).isSail = true;
     (sail as any).sailId = 'sail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    (sail as any).sailColor = selectedColor; // Store the sail's individual color
     (sail as any).sailPoints = simplifiedPoints;
     // For closed polygons, number of edges = number of unique vertices
     const numEdges = simplifiedPoints.length - 1; // Subtract 1 for duplicate closing point
@@ -697,6 +687,7 @@ export default function CanvasWorkspace({
     // Mark as sail for identification and store edge configuration
     (sail as any).isSail = true;
     (sail as any).sailId = 'sail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    (sail as any).sailColor = selectedColor; // Store the sail's individual color
     (sail as any).sailPoints = finalPoints;
     // Ensure curvedEdges array matches actual number of edges
     const numEdges = finalPoints.length - 1; // For closed polygons
@@ -786,26 +777,28 @@ export default function CanvasWorkspace({
     // Create new path with updated edge configuration
     const pathData = polygonToMixedPath(sailPoints, newCurvedEdges, 0.05);
     
-    // Store current position and transform for restoration
+    // Store current position, transform, and color for restoration
     const currentLeft = currentSail.left;
     const currentTop = currentSail.top;
     const currentAngle = currentSail.angle;
     const currentScaleX = currentSail.scaleX;
     const currentScaleY = currentSail.scaleY;
+    const currentColor = (currentSail as any).sailColor || selectedColor; // Preserve original color
+    const currentSailId = (currentSail as any).sailId;
     
     // Remove old sail and create new one with updated path
     fabricCanvasRef.current.remove(currentSail);
     
     const newSail = new Path(pathData, {
-      fill: selectedColor,
-      stroke: selectedColor,
+      fill: currentColor,
+      stroke: currentColor,
       strokeWidth: 2,
       opacity: 0.8,
       cornerStyle: 'circle',
       cornerSize: 8,
       transparentCorners: false,
       cornerColor: '#fff',
-      cornerStrokeColor: selectedColor,
+      cornerStrokeColor: currentColor,
       left: currentLeft,
       top: currentTop,
       angle: currentAngle,
@@ -815,6 +808,8 @@ export default function CanvasWorkspace({
     
     // Restore sail metadata
     (newSail as any).isSail = true;
+    (newSail as any).sailId = currentSailId; // Preserve original sail ID
+    (newSail as any).sailColor = currentColor; // Preserve original sail color
     (newSail as any).sailPoints = sailPoints;
     (newSail as any).curvedEdges = [...newCurvedEdges];
     (newSail as any).sailType = sailType;
@@ -888,6 +883,7 @@ export default function CanvasWorkspace({
     // Mark as sail for identification and store shape info
     (sail as any).isSail = true;
     (sail as any).sailId = 'sail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    (sail as any).sailColor = selectedColor; // Store the sail's individual color
     (sail as any).sailPoints = points;
     // Standard shapes don't have duplicate closing points, so edges = points
     (sail as any).curvedEdges = new Array(points.length).fill(true); // All curved for standard shapes

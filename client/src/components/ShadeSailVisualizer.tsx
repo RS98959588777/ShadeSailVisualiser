@@ -74,6 +74,30 @@ export default function ShadeSailVisualizer() {
     }
   }, [canvas, postManager]);
 
+  // Update selectedColor when a sail is selected to show its current color
+  useEffect(() => {
+    if (canvas) {
+      const handleSailSelection = () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject && (activeObject as any).isSail) {
+          // Get the sail's stored color or use its current fill color
+          const sailColor = (activeObject as any).sailColor || activeObject.fill;
+          if (sailColor && sailColor !== selectedColor) {
+            setSelectedColor(sailColor as string);
+          }
+        }
+      };
+
+      canvas.on('selection:created', handleSailSelection);
+      canvas.on('selection:updated', handleSailSelection);
+
+      return () => {
+        canvas.off('selection:created', handleSailSelection);
+        canvas.off('selection:updated', handleSailSelection);
+      };
+    }
+  }, [canvas, selectedColor]);
+
   const handlePostSelect = (id: string | null) => {
     setSelectedPostId(id);
     if (id && postManager) {
@@ -127,7 +151,7 @@ export default function ShadeSailVisualizer() {
 
   const handleReset = () => {
     setUploadedImage(undefined);
-    setSelectedColor('#2D4A40');
+    setSelectedColor('#36454F'); // Use consistent default color
     setOpacity(80);
     setRotation(0);
     setSelectedShape('triangle');
@@ -141,15 +165,17 @@ export default function ShadeSailVisualizer() {
 
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    // Update existing sail color if present  
+    // Only update the currently selected sail color if present  
     if (canvas && hasSail) {
-      const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
-      sails.forEach(sail => {
-        sail.set('fill', color);
-        sail.set('stroke', color);
-        sail.set('cornerStrokeColor', color);
-      });
-      canvas.renderAll();
+      const activeObject = canvas.getActiveObject();
+      if (activeObject && (activeObject as any).isSail) {
+        activeObject.set('fill', color);
+        activeObject.set('stroke', color);
+        activeObject.set('cornerStrokeColor', color);
+        // Store the color on the sail object for future reference
+        (activeObject as any).sailColor = color;
+        canvas.renderAll();
+      }
     }
   };
 
