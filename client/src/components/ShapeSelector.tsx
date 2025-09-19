@@ -103,7 +103,6 @@ export default function ShapeSelector({
   React.useEffect(() => {
     if (sailEdgeFunctions?.getSailCount) {
       const count = sailEdgeFunctions.getSailCount();
-      console.log('ShapeSelector: updating sail count to', count);
       setSailCount(count);
     }
   }, [sailEdgeFunctions, hasSail]);

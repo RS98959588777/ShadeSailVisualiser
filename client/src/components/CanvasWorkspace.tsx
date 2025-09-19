@@ -70,7 +70,6 @@ export default function CanvasWorkspace({
     // Track sail count for UI updates
     const updateSailCount = () => {
       const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
-      console.log('updateSailCount: found', sails.length, 'sails');
       setSailCount(sails.length);
     };
 
@@ -581,7 +580,6 @@ export default function CanvasWorkspace({
     
     // Calculate area to validate the shape
     const area = calculatePolygonArea(simplifiedPoints);
-    console.log('createSailFromDrawnPath: calculated area:', area, 'for', simplifiedPoints.length, 'points');
     if (area < 500) { // Lowered threshold from 1000 to 500
       console.warn('Shape too small to create a sail, area:', area);
       return;
@@ -612,14 +610,14 @@ export default function CanvasWorkspace({
     // Mark as sail for identification and store configuration
     (sail as any).isSail = true;
     (sail as any).sailPoints = simplifiedPoints;
-    (sail as any).curvedEdges = new Array(simplifiedPoints.length).fill(true); // All curved
+    // For closed polygons, number of edges = number of unique vertices
+    const numEdges = simplifiedPoints.length - 1; // Subtract 1 for duplicate closing point
+    (sail as any).curvedEdges = new Array(numEdges).fill(true); // All curved
     (sail as any).sailType = 'drawn';
     
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
-    
-    console.log('createSailFromDrawnPath: sail created and added to canvas');
     
     // Clean up drawing state
     setDrawnPoints([]);
@@ -651,7 +649,6 @@ export default function CanvasWorkspace({
     
     // Calculate area to validate the shape
     const area = calculatePolygonArea(finalPoints);
-    console.log('createSailWithMixedEdges: calculated area:', area, 'for', finalPoints.length, 'points');
     if (area < 500) { // Lowered threshold from 1000 to 500
       console.warn('Shape too small to create a sail, area:', area);
       return;
@@ -682,7 +679,10 @@ export default function CanvasWorkspace({
     // Mark as sail for identification and store edge configuration
     (sail as any).isSail = true;
     (sail as any).sailPoints = finalPoints;
-    (sail as any).curvedEdges = [...curvedEdges];
+    // Ensure curvedEdges array matches actual number of edges
+    const numEdges = finalPoints.length - 1; // For closed polygons
+    const adjustedCurvedEdges = curvedEdges.slice(0, numEdges);
+    (sail as any).curvedEdges = [...adjustedCurvedEdges];
     (sail as any).sailType = 'custom';
     
     fabricCanvasRef.current.add(sail);
@@ -869,6 +869,7 @@ export default function CanvasWorkspace({
     // Mark as sail for identification and store shape info
     (sail as any).isSail = true;
     (sail as any).sailPoints = points;
+    // Standard shapes don't have duplicate closing points, so edges = points
     (sail as any).curvedEdges = new Array(points.length).fill(true); // All curved for standard shapes
     (sail as any).sailType = 'standard';
     (sail as any).shapeType = selectedShape;
