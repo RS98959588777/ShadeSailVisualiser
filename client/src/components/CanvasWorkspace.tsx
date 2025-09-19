@@ -39,6 +39,7 @@ export default function CanvasWorkspace({
   const [curvedEdges, setCurvedEdges] = useState<boolean[]>([]);
   const [finalDrawnPoints, setFinalDrawnPoints] = useState<Point[]>([]);
   const [sailCount, setSailCount] = useState(0); // Track actual sail count
+  const [selectedSailId, setSelectedSailId] = useState<string | null>(null); // Track selected sail
 
   // Update existing sail color when selectedColor changes
   useEffect(() => {
@@ -73,9 +74,22 @@ export default function CanvasWorkspace({
       setSailCount(sails.length);
     };
 
-    // Set up event listeners for sail count tracking
+    // Track sail selection changes
+    const handleSelectionChange = () => {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject && (activeObject as any).isSail) {
+        setSelectedSailId((activeObject as any).sailId || Date.now().toString());
+      } else {
+        setSelectedSailId(null);
+      }
+    };
+
+    // Set up event listeners
     canvas.on('object:added', updateSailCount);
     canvas.on('object:removed', updateSailCount);
+    canvas.on('selection:created', handleSelectionChange);
+    canvas.on('selection:updated', handleSelectionChange);
+    canvas.on('selection:cleared', handleSelectionChange);
     
     // Initial count
     updateSailCount();
@@ -113,6 +127,9 @@ export default function CanvasWorkspace({
     return () => {
       canvas.off('object:added', updateSailCount);
       canvas.off('object:removed', updateSailCount);
+      canvas.off('selection:created', handleSelectionChange);
+      canvas.off('selection:updated', handleSelectionChange);
+      canvas.off('selection:cleared', handleSelectionChange);
       canvas.dispose();
     };
   }, [imageFile, onCanvasReady]);
@@ -122,7 +139,7 @@ export default function CanvasWorkspace({
     if (fabricCanvasRef.current && onSailEdgeModified) {
       onSailEdgeModified(getCurrentSailEdges, modifyExistingSailEdges, getSailCount);
     }
-  }, [selectedColor, sailCount]); // Re-emit when color or sail count changes
+  }, [selectedColor, sailCount, selectedSailId]); // Re-emit when color, sail count, or selection changes
 
   // Handle drawing mode changes
   useEffect(() => {
@@ -609,6 +626,7 @@ export default function CanvasWorkspace({
     
     // Mark as sail for identification and store configuration
     (sail as any).isSail = true;
+    (sail as any).sailId = 'sail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     (sail as any).sailPoints = simplifiedPoints;
     // For closed polygons, number of edges = number of unique vertices
     const numEdges = simplifiedPoints.length - 1; // Subtract 1 for duplicate closing point
@@ -678,6 +696,7 @@ export default function CanvasWorkspace({
     
     // Mark as sail for identification and store edge configuration
     (sail as any).isSail = true;
+    (sail as any).sailId = 'sail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     (sail as any).sailPoints = finalPoints;
     // Ensure curvedEdges array matches actual number of edges
     const numEdges = finalPoints.length - 1; // For closed polygons
@@ -868,6 +887,7 @@ export default function CanvasWorkspace({
 
     // Mark as sail for identification and store shape info
     (sail as any).isSail = true;
+    (sail as any).sailId = 'sail_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     (sail as any).sailPoints = points;
     // Standard shapes don't have duplicate closing points, so edges = points
     (sail as any).curvedEdges = new Array(points.length).fill(true); // All curved for standard shapes
