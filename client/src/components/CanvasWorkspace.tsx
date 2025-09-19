@@ -136,37 +136,10 @@ export default function CanvasWorkspace({
             Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
           );
           
-          // If clicked close to first point (within 15 pixels), show edge selection
+          // If clicked close to first point (within 15 pixels), create sail directly
           if (distanceToFirst <= 15) {
-            // Simplify the path BEFORE showing edge selection to ensure mapping alignment
-            let simplifiedPoints = simplifyPath(drawnPointsRef.current, 5);
-            
-            // Ensure minimum 3 points for a valid shape
-            if (simplifiedPoints.length < 3) {
-              console.warn('Not enough points to create a sail');
-              return;
-            }
-            
-            // Don't duplicate the first point - path generator handles closure with 'Z'
-            const firstPoint = simplifiedPoints[0];
-            const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
-            const distanceToClose = Math.sqrt(
-              Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
-            );
-            
-            // If path is already effectively closed, don't add duplicate point
-            if (distanceToClose > 5 && simplifiedPoints.length > 3) {
-              // Path isn't closed, but we don't need to add the first point again
-              // The 'Z' command in SVG path will handle the closure
-            }
-            
-            // Set final points to the simplified polygon
-            setFinalDrawnPoints(simplifiedPoints);
-            setShowEdgeSelection(true);
-            // Initialize all edges as curved by default, matching simplified polygon length
-            setCurvedEdges(new Array(simplifiedPoints.length).fill(true));
-            // Clean up temporary drawing objects
-            cleanupDrawingObjects();
+            // Create sail directly with default smoothing, bypassing edge selection
+            createSailFromDrawnPath(drawnPointsRef.current, 5);
             return;
           }
         }
