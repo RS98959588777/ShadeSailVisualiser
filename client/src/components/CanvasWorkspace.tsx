@@ -13,7 +13,7 @@ interface CanvasWorkspaceProps {
   hasSail?: boolean;
   onCanvasReady?: (canvas: Canvas) => void;
   onDrawModeExit?: () => void;
-  onSailEdgeModified?: (getCurrentSailEdges: () => any, modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any) => void;
+  onSailEdgeModified?: (getCurrentSailEdges: () => any, modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any, getSailCount: () => number) => void;
 }
 
 export default function CanvasWorkspace({ 
@@ -38,6 +38,7 @@ export default function CanvasWorkspace({
   const [showEdgeSelection, setShowEdgeSelection] = useState(false);
   const [curvedEdges, setCurvedEdges] = useState<boolean[]>([]);
   const [finalDrawnPoints, setFinalDrawnPoints] = useState<Point[]>([]);
+  const [sailCount, setSailCount] = useState(0); // Track actual sail count
 
   // Update existing sail color when selectedColor changes
   useEffect(() => {
@@ -66,8 +67,22 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current = canvas;
     onCanvasReady?.(canvas);
 
+    // Track sail count for UI updates
+    const updateSailCount = () => {
+      const sails = canvas.getObjects().filter(obj => (obj as any).isSail);
+      console.log('updateSailCount: found', sails.length, 'sails');
+      setSailCount(sails.length);
+    };
+
+    // Set up event listeners for sail count tracking
+    canvas.on('object:added', updateSailCount);
+    canvas.on('object:removed', updateSailCount);
+    
+    // Initial count
+    updateSailCount();
+
     // Pass edge modification functions to parent initially
-    onSailEdgeModified?.(getCurrentSailEdges, modifyExistingSailEdges);
+    onSailEdgeModified?.(getCurrentSailEdges, modifyExistingSailEdges, getSailCount);
 
     // Load image if provided
     if (imageFile) {
@@ -97,6 +112,8 @@ export default function CanvasWorkspace({
     }
 
     return () => {
+      canvas.off('object:added', updateSailCount);
+      canvas.off('object:removed', updateSailCount);
       canvas.dispose();
     };
   }, [imageFile, onCanvasReady]);
@@ -104,9 +121,9 @@ export default function CanvasWorkspace({
   // Re-emit edge modification functions when dependencies change to avoid stale closures
   useEffect(() => {
     if (fabricCanvasRef.current && onSailEdgeModified) {
-      onSailEdgeModified(getCurrentSailEdges, modifyExistingSailEdges);
+      onSailEdgeModified(getCurrentSailEdges, modifyExistingSailEdges, getSailCount);
     }
-  }, [selectedColor, hasSail]); // Re-emit when color or sail presence changes
+  }, [selectedColor, sailCount]); // Re-emit when color or sail count changes
 
   // Handle drawing mode changes
   useEffect(() => {
@@ -564,14 +581,18 @@ export default function CanvasWorkspace({
     
     // Calculate area to validate the shape
     const area = calculatePolygonArea(simplifiedPoints);
-    if (area < 1000) {
-      console.warn('Shape too small to create a sail');
+    console.log('createSailFromDrawnPath: calculated area:', area, 'for', simplifiedPoints.length, 'points');
+    if (area < 500) { // Lowered threshold from 1000 to 500
+      console.warn('Shape too small to create a sail, area:', area);
       return;
     }
     
-    // Remove existing sails
+    // Check sail limit (max 10 sails)
     const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
-    existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
+    if (existingSails.length >= 10) {
+      console.warn('Maximum of 10 sails allowed');
+      return;
+    }
     
     // Create curved path using consistent sag ratio
     const pathData = polygonToCurvedPath(simplifiedPoints, 0.05);
@@ -597,6 +618,8 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
     fabricCanvasRef.current.renderAll();
+    
+    console.log('createSailFromDrawnPath: sail created and added to canvas');
     
     // Clean up drawing state
     setDrawnPoints([]);
@@ -628,14 +651,18 @@ export default function CanvasWorkspace({
     
     // Calculate area to validate the shape
     const area = calculatePolygonArea(finalPoints);
-    if (area < 1000) {
-      console.warn('Shape too small to create a sail');
+    console.log('createSailWithMixedEdges: calculated area:', area, 'for', finalPoints.length, 'points');
+    if (area < 500) { // Lowered threshold from 1000 to 500
+      console.warn('Shape too small to create a sail, area:', area);
       return;
     }
     
-    // Remove existing sails
+    // Check sail limit (max 10 sails)
     const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
-    existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
+    if (existingSails.length >= 10) {
+      console.warn('Maximum of 10 sails allowed');
+      return;
+    }
     
     // Use curvedEdges array as-is since it matches the final points
     const pathData = polygonToMixedPath(finalPoints, curvedEdges, 0.05);
@@ -806,12 +833,22 @@ export default function CanvasWorkspace({
     };
   };
 
+  // Get total number of sails on canvas
+  const getSailCount = () => {
+    if (!fabricCanvasRef.current) return 0;
+    const sails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
+    return sails.length;
+  };
+
   const addShadeSail = () => {
     if (!fabricCanvasRef.current) return;
 
-    // Remove existing sail if present
+    // Check sail limit (max 10 sails)
     const existingSails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
-    existingSails.forEach(sail => fabricCanvasRef.current!.remove(sail));
+    if (existingSails.length >= 10) {
+      console.warn('Maximum of 10 sails allowed');
+      return;
+    }
 
     // Create shade sail with selected shape and curved edges
     const points = getShapePoints(selectedShape);

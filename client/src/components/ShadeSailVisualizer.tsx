@@ -21,6 +21,7 @@ export default function ShadeSailVisualizer() {
   const [sailEdgeFunctions, setSailEdgeFunctions] = useState<{
     getCurrentSailEdges: () => any;
     modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any;
+    getSailCount: () => number;
   } | null>(null);
 
   // Track if there's a sail on the canvas
@@ -80,10 +81,11 @@ export default function ShadeSailVisualizer() {
     }
   };
 
-  const handleSailEdgeModified = (getCurrentSailEdges: () => any, modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any) => {
+  const handleSailEdgeModified = (getCurrentSailEdges: () => any, modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any, getSailCount: () => number) => {
     setSailEdgeFunctions({
       getCurrentSailEdges,
-      modifyExistingSailEdges
+      modifyExistingSailEdges,
+      getSailCount
     });
   };
 

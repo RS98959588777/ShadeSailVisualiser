@@ -84,6 +84,7 @@ interface ShapeSelectorProps {
   sailEdgeFunctions?: {
     getCurrentSailEdges: () => any;
     modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any;
+    getSailCount?: () => number;
   } | null;
   hasSail?: boolean;
 }
@@ -96,6 +97,17 @@ export default function ShapeSelector({
   sailEdgeFunctions,
   hasSail = false
 }: ShapeSelectorProps) {
+  const [sailCount, setSailCount] = React.useState(0);
+
+  // Update sail count when sail functions change
+  React.useEffect(() => {
+    if (sailEdgeFunctions?.getSailCount) {
+      const count = sailEdgeFunctions.getSailCount();
+      console.log('ShapeSelector: updating sail count to', count);
+      setSailCount(count);
+    }
+  }, [sailEdgeFunctions, hasSail]);
+
   return (
     <div className="space-y-4">
       <div>
@@ -103,6 +115,19 @@ export default function ShapeSelector({
         <p className="text-sm text-muted-foreground mb-3">
           Draw a custom shape that fits your space perfectly
         </p>
+        
+        {/* Sail Management Info */}
+        <div className="bg-muted/30 rounded-md p-3 mb-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Sails on canvas:</span>
+            <span className="font-medium text-foreground">{sailCount}/10</span>
+          </div>
+          {sailCount > 0 && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Click on a sail to select and modify it
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
