@@ -143,7 +143,7 @@ export default function ControlPanel({
         </h2>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className={`grid ${hasSail ? 'grid-cols-4' : 'grid-cols-3'} w-full`}>
+          <TabsList className="grid grid-cols-3 w-full">
             <TabsTrigger value="posts" className="text-xs" data-testid="tab-posts">
               <Pilcrow className="w-4 h-4" />
             </TabsTrigger>
@@ -153,11 +153,6 @@ export default function ControlPanel({
             <TabsTrigger value="color" className="text-xs" data-testid="tab-color">
               <Palette className="w-4 h-4" />
             </TabsTrigger>
-            {hasSail && (
-              <TabsTrigger value="edges" className="text-xs" data-testid="tab-edges">
-                <RotateCw className="w-4 h-4" />
-              </TabsTrigger>
-            )}
           </TabsList>
 
           <TabsContent value="posts" className="space-y-4">
@@ -182,13 +177,12 @@ export default function ControlPanel({
               selectedColor={selectedColor}
               onColorSelect={onColorSelect}
             />
+            {hasSail && (
+              <div className="mt-6">
+                <SailEdgeControls sailEdgeFunctions={sailEdgeFunctions} />
+              </div>
+            )}
           </TabsContent>
-
-          {hasSail && (
-            <TabsContent value="edges" className="space-y-4">
-              <SailEdgeControls sailEdgeFunctions={sailEdgeFunctions} />
-            </TabsContent>
-          )}
 
         </Tabs>
       </div>
