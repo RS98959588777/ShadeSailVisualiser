@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import React from 'react';
 import { Settings, Palette, RotateCw, Shapes, Pilcrow } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +9,80 @@ import ColorPalette from './ColorPalette';
 import ShapeSelector from './ShapeSelector';
 import PostControls from './PostControls';
 import { PostManager } from './ShadeSailPost';
+
+interface SailEdgeControlsProps {
+  sailEdgeFunctions?: {
+    getCurrentSailEdges: () => any;
+    modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any;
+  } | null;
+}
+
+function SailEdgeControls({ sailEdgeFunctions }: SailEdgeControlsProps) {
+  const [currentEdges, setCurrentEdges] = useState<boolean[]>([]);
+  const [sailInfo, setSailInfo] = useState<any>(null);
+
+  // Get current sail edge configuration when component mounts or functions change
+  React.useEffect(() => {
+    if (sailEdgeFunctions?.getCurrentSailEdges) {
+      const info = sailEdgeFunctions.getCurrentSailEdges();
+      if (info) {
+        setSailInfo(info);
+        setCurrentEdges([...info.curvedEdges]);
+      }
+    }
+  }, [sailEdgeFunctions]);
+
+  const toggleEdge = (edgeIndex: number) => {
+    if (!sailEdgeFunctions?.modifyExistingSailEdges) return;
+    
+    const newEdges = [...currentEdges];
+    newEdges[edgeIndex] = !newEdges[edgeIndex];
+    setCurrentEdges(newEdges);
+    
+    // Apply changes to the sail
+    sailEdgeFunctions.modifyExistingSailEdges(newEdges);
+  };
+
+  if (!sailInfo || currentEdges.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground py-4">
+        <p>No sail found or sail data not available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-medium mb-2">Modify Sail Edges</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Choose which edges should be curved or straight
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2">
+        {currentEdges.map((isCurved, index) => (
+          <Button
+            key={index}
+            size="sm"
+            variant={isCurved ? "default" : "outline"}
+            onClick={() => toggleEdge(index)}
+            data-testid={`toggle-edge-${index}`}
+            className="text-xs"
+          >
+            Edge {index + 1}: {isCurved ? "Curved" : "Straight"}
+          </Button>
+        ))}
+      </div>
+      
+      <div className="text-xs text-muted-foreground">
+        <p>Sail Type: {sailInfo.sailType}</p>
+        {sailInfo.shapeType && <p>Shape: {sailInfo.shapeType}</p>}
+        <p>Edges: {currentEdges.length}</p>
+      </div>
+    </div>
+  );
+}
 
 interface ControlPanelProps {
   selectedColor: string;
@@ -23,6 +98,11 @@ interface ControlPanelProps {
   onPostSelect?: (id: string | null) => void;
   isDrawMode?: boolean;
   onDrawModeToggle?: (enabled: boolean) => void;
+  sailEdgeFunctions?: {
+    getCurrentSailEdges: () => any;
+    modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any;
+  } | null;
+  hasSail?: boolean;
   isVisible?: boolean;
 }
 
@@ -40,6 +120,8 @@ export default function ControlPanel({
   onPostSelect,
   isDrawMode = false,
   onDrawModeToggle,
+  sailEdgeFunctions,
+  hasSail = false,
   isVisible = true
 }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState('posts');
@@ -61,7 +143,7 @@ export default function ControlPanel({
         </h2>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className={`grid ${hasSail ? 'grid-cols-4' : 'grid-cols-3'} w-full`}>
             <TabsTrigger value="posts" className="text-xs" data-testid="tab-posts">
               <Pilcrow className="w-4 h-4" />
             </TabsTrigger>
@@ -71,6 +153,11 @@ export default function ControlPanel({
             <TabsTrigger value="color" className="text-xs" data-testid="tab-color">
               <Palette className="w-4 h-4" />
             </TabsTrigger>
+            {hasSail && (
+              <TabsTrigger value="edges" className="text-xs" data-testid="tab-edges">
+                <RotateCw className="w-4 h-4" />
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="posts" className="space-y-4">
@@ -96,6 +183,12 @@ export default function ControlPanel({
               onColorSelect={onColorSelect}
             />
           </TabsContent>
+
+          {hasSail && (
+            <TabsContent value="edges" className="space-y-4">
+              <SailEdgeControls sailEdgeFunctions={sailEdgeFunctions} />
+            </TabsContent>
+          )}
 
         </Tabs>
       </div>

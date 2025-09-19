@@ -13,6 +13,7 @@ interface CanvasWorkspaceProps {
   hasSail?: boolean;
   onCanvasReady?: (canvas: Canvas) => void;
   onDrawModeExit?: () => void;
+  onSailEdgeModified?: (getCurrentSailEdges: () => any, modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any) => void;
 }
 
 export default function CanvasWorkspace({ 
@@ -22,7 +23,8 @@ export default function CanvasWorkspace({
   isDrawMode = false,
   hasSail = false,
   onCanvasReady, 
-  onDrawModeExit 
+  onDrawModeExit,
+  onSailEdgeModified
 }: CanvasWorkspaceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
@@ -64,6 +66,9 @@ export default function CanvasWorkspace({
     fabricCanvasRef.current = canvas;
     onCanvasReady?.(canvas);
 
+    // Pass edge modification functions to parent initially
+    onSailEdgeModified?.(getCurrentSailEdges, modifyExistingSailEdges);
+
     // Load image if provided
     if (imageFile) {
       const reader = new FileReader();
@@ -95,6 +100,13 @@ export default function CanvasWorkspace({
       canvas.dispose();
     };
   }, [imageFile, onCanvasReady]);
+
+  // Re-emit edge modification functions when dependencies change to avoid stale closures
+  useEffect(() => {
+    if (fabricCanvasRef.current && onSailEdgeModified) {
+      onSailEdgeModified(getCurrentSailEdges, modifyExistingSailEdges);
+    }
+  }, [selectedColor, hasSail]); // Re-emit when color or sail presence changes
 
   // Handle drawing mode changes
   useEffect(() => {
@@ -603,8 +615,11 @@ export default function CanvasWorkspace({
       cornerStrokeColor: selectedColor,
     });
     
-    // Mark as sail for identification
+    // Mark as sail for identification and store configuration
     (sail as any).isSail = true;
+    (sail as any).sailPoints = simplifiedPoints;
+    (sail as any).curvedEdges = new Array(simplifiedPoints.length).fill(true); // All curved
+    (sail as any).sailType = 'drawn';
     
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
@@ -664,8 +679,11 @@ export default function CanvasWorkspace({
       cornerStrokeColor: selectedColor,
     });
     
-    // Mark as sail for identification
+    // Mark as sail for identification and store edge configuration
     (sail as any).isSail = true;
+    (sail as any).sailPoints = finalPoints;
+    (sail as any).curvedEdges = [...curvedEdges];
+    (sail as any).sailType = 'custom';
     
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);
@@ -724,6 +742,97 @@ export default function CanvasWorkspace({
     setCurvedEdges(newCurvedEdges);
   };
 
+  // Function to modify edges of an existing sail
+  const modifyExistingSailEdges = (newCurvedEdges: boolean[]) => {
+    if (!fabricCanvasRef.current) return null;
+    
+    // Find the active sail first, fallback to any sail
+    const activeObject = fabricCanvasRef.current.getActiveObject();
+    let currentSail = (activeObject && (activeObject as any).isSail) ? activeObject : null;
+    
+    if (!currentSail) {
+      // Fallback: find the most recently added sail
+      const sails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
+      currentSail = sails[sails.length - 1] || null;
+    }
+    
+    if (!currentSail) return null;
+    
+    // Get stored sail data
+    const sailPoints = (currentSail as any).sailPoints;
+    const sailType = (currentSail as any).sailType;
+    
+    if (!sailPoints || !Array.isArray(sailPoints)) return null;
+    
+    // Create new path with updated edge configuration
+    const pathData = polygonToMixedPath(sailPoints, newCurvedEdges, 0.05);
+    
+    // Store current position and transform for restoration
+    const currentLeft = currentSail.left;
+    const currentTop = currentSail.top;
+    const currentAngle = currentSail.angle;
+    const currentScaleX = currentSail.scaleX;
+    const currentScaleY = currentSail.scaleY;
+    
+    // Remove old sail and create new one with updated path
+    fabricCanvasRef.current.remove(currentSail);
+    
+    const newSail = new Path(pathData, {
+      fill: selectedColor,
+      stroke: selectedColor,
+      strokeWidth: 2,
+      opacity: 0.8,
+      cornerStyle: 'circle',
+      cornerSize: 8,
+      transparentCorners: false,
+      cornerColor: '#fff',
+      cornerStrokeColor: selectedColor,
+      left: currentLeft,
+      top: currentTop,
+      angle: currentAngle,
+      scaleX: currentScaleX,
+      scaleY: currentScaleY,
+    });
+    
+    // Restore sail metadata
+    (newSail as any).isSail = true;
+    (newSail as any).sailPoints = sailPoints;
+    (newSail as any).curvedEdges = [...newCurvedEdges];
+    (newSail as any).sailType = sailType;
+    if ((currentSail as any).shapeType) {
+      (newSail as any).shapeType = (currentSail as any).shapeType;
+    }
+    
+    fabricCanvasRef.current.add(newSail);
+    fabricCanvasRef.current.setActiveObject(newSail);
+    fabricCanvasRef.current.renderAll();
+    return newSail;
+  };
+
+  // Get current sail edge configuration for UI
+  const getCurrentSailEdges = () => {
+    if (!fabricCanvasRef.current) return null;
+    
+    // Find the active sail first, fallback to any sail
+    const activeObject = fabricCanvasRef.current.getActiveObject();
+    let currentSail = (activeObject && (activeObject as any).isSail) ? activeObject : null;
+    
+    if (!currentSail) {
+      // Fallback: find the most recently added sail
+      const sails = fabricCanvasRef.current.getObjects().filter(obj => (obj as any).isSail);
+      currentSail = sails[sails.length - 1] || null;
+    }
+    
+    if (!currentSail) return null;
+    
+    return {
+      curvedEdges: (currentSail as any).curvedEdges || [],
+      sailType: (currentSail as any).sailType || 'unknown',
+      shapeType: (currentSail as any).shapeType || null,
+      pointCount: ((currentSail as any).sailPoints || []).length
+    };
+  };
+
   const addShadeSail = () => {
     if (!fabricCanvasRef.current) return;
 
@@ -747,8 +856,12 @@ export default function CanvasWorkspace({
       cornerStrokeColor: selectedColor,
     });
 
-    // Mark as sail for identification
+    // Mark as sail for identification and store shape info
     (sail as any).isSail = true;
+    (sail as any).sailPoints = points;
+    (sail as any).curvedEdges = new Array(points.length).fill(true); // All curved for standard shapes
+    (sail as any).sailType = 'standard';
+    (sail as any).shapeType = selectedShape;
 
     fabricCanvasRef.current.add(sail);
     fabricCanvasRef.current.setActiveObject(sail);

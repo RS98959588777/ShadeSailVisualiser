@@ -18,6 +18,10 @@ export default function ShadeSailVisualizer() {
   const [isDrawMode, setIsDrawMode] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [hasSail, setHasSail] = useState(false);
+  const [sailEdgeFunctions, setSailEdgeFunctions] = useState<{
+    getCurrentSailEdges: () => any;
+    modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any;
+  } | null>(null);
 
   // Track if there's a sail on the canvas
   useEffect(() => {
@@ -74,6 +78,13 @@ export default function ShadeSailVisualizer() {
     if (id && postManager) {
       postManager.selectPost(id);
     }
+  };
+
+  const handleSailEdgeModified = (getCurrentSailEdges: () => any, modifyExistingSailEdges: (newCurvedEdges: boolean[]) => any) => {
+    setSailEdgeFunctions({
+      getCurrentSailEdges,
+      modifyExistingSailEdges
+    });
   };
 
   const handleImageUpload = async (file: File) => {
@@ -202,6 +213,7 @@ export default function ShadeSailVisualizer() {
               hasSail={hasSail}
               onCanvasReady={setCanvas}
               onDrawModeExit={() => setIsDrawMode(false)}
+              onSailEdgeModified={handleSailEdgeModified}
             />
           )}
         </div>
@@ -222,6 +234,8 @@ export default function ShadeSailVisualizer() {
             onPostSelect={handlePostSelect}
             isDrawMode={isDrawMode}
             onDrawModeToggle={setIsDrawMode}
+            sailEdgeFunctions={sailEdgeFunctions}
+            hasSail={hasSail}
             isVisible={!!uploadedImage}
           />
         )}
