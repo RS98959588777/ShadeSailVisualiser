@@ -117,35 +117,20 @@ export default function CanvasWorkspace({
         
         const point = new Point(pointer.x, pointer.y);
         
-        // Check if we're close to the first point (auto-complete the shape)
+        // Check for line intersection to auto-complete the sail
         if (drawnPointsRef.current.length >= 3) {
-          const firstPoint = drawnPointsRef.current[0];
-          const distanceToFirst = Math.sqrt(
-            Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
-          );
-          
-          // If clicked close to first point (within 15 pixels), show edge selection
-          if (distanceToFirst <= 15) {
+          // Check if the line from last point to current point intersects with any existing line
+          if (checkForIntersection(point, drawnPointsRef.current)) {
+            // Add the current point to complete the intersection
+            const completedPoints = [...drawnPointsRef.current, point];
+            
             // Simplify the path BEFORE showing edge selection to ensure mapping alignment
-            let simplifiedPoints = simplifyPath(drawnPointsRef.current, 5);
+            let simplifiedPoints = simplifyPath(completedPoints, 5);
             
             // Ensure minimum 3 points for a valid shape
             if (simplifiedPoints.length < 3) {
               console.warn('Not enough points to create a sail');
               return;
-            }
-            
-            // Don't duplicate the first point - path generator handles closure with 'Z'
-            const firstPoint = simplifiedPoints[0];
-            const lastPoint = simplifiedPoints[simplifiedPoints.length - 1];
-            const distanceToClose = Math.sqrt(
-              Math.pow(lastPoint.x - firstPoint.x, 2) + Math.pow(lastPoint.y - firstPoint.y, 2)
-            );
-            
-            // If path is already effectively closed, don't add duplicate point
-            if (distanceToClose > 5 && simplifiedPoints.length > 3) {
-              // Path isn't closed, but we don't need to add the first point again
-              // The 'Z' command in SVG path will handle the closure
             }
             
             // Set final points to the simplified polygon
@@ -203,20 +188,13 @@ export default function CanvasWorkspace({
         
         const lastPoint = drawnPointsRef.current[drawnPointsRef.current.length - 1];
         
-        // Check if we're hovering near the first point (for auto-completion visual feedback)
-        let isNearFirstPoint = false;
+        // Check if current preview line would intersect with existing lines
+        let willIntersect = false;
         let previewEndPoint = { x: pointer.x, y: pointer.y };
         
         if (drawnPointsRef.current.length >= 3) {
-          const firstPoint = drawnPointsRef.current[0];
-          const distanceToFirst = Math.sqrt(
-            Math.pow(pointer.x - firstPoint.x, 2) + Math.pow(pointer.y - firstPoint.y, 2)
-          );
-          
-          if (distanceToFirst <= 15) {
-            isNearFirstPoint = true;
-            previewEndPoint = { x: firstPoint.x, y: firstPoint.y };
-          }
+          const previewPoint = new Point(previewEndPoint.x, previewEndPoint.y);
+          willIntersect = checkForIntersection(previewPoint, drawnPointsRef.current);
         }
         
         // Update or create preview line
@@ -227,9 +205,9 @@ export default function CanvasWorkspace({
             y1: lastPoint.y,
             x2: previewEndPoint.x,
             y2: previewEndPoint.y,
-            stroke: isNearFirstPoint ? '#00ff00' : selectedColor,  // Green when near first point
-            strokeWidth: isNearFirstPoint ? 3 : 2,  // Thicker line when near first point
-            opacity: isNearFirstPoint ? 1 : 0.7
+            stroke: willIntersect ? '#00ff00' : selectedColor,  // Green when intersection detected
+            strokeWidth: willIntersect ? 3 : 2,  // Thicker line when intersection detected
+            opacity: willIntersect ? 1 : 0.7
           });
           canvas.renderAll();
         } else {
@@ -237,13 +215,13 @@ export default function CanvasWorkspace({
           const newPreviewLine = new fabric.Line([
             lastPoint.x, lastPoint.y, previewEndPoint.x, previewEndPoint.y
           ], {
-            stroke: isNearFirstPoint ? '#00ff00' : selectedColor,
-            strokeWidth: isNearFirstPoint ? 3 : 2,
+            stroke: willIntersect ? '#00ff00' : selectedColor,
+            strokeWidth: willIntersect ? 3 : 2,
             strokeDashArray: [5, 5],
             selectable: false,
             evented: false,
             isTemporary: true,
-            opacity: isNearFirstPoint ? 1 : 0.7
+            opacity: willIntersect ? 1 : 0.7
           } as any);
           
           canvas.add(newPreviewLine);
@@ -370,6 +348,42 @@ export default function CanvasWorkspace({
     const distanceY = point.y - projectionY;
     
     return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+  };
+
+  // Line intersection detection
+  const doLinesIntersect = (line1Start: Point, line1End: Point, line2Start: Point, line2End: Point): boolean => {
+    const x1 = line1Start.x, y1 = line1Start.y;
+    const x2 = line1End.x, y2 = line1End.y;
+    const x3 = line2Start.x, y3 = line2Start.y;
+    const x4 = line2End.x, y4 = line2End.y;
+    
+    const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+    if (Math.abs(denom) < 1e-10) return false; // Lines are parallel
+    
+    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+    const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom;
+    
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+  };
+  
+  // Check if current drawing line intersects with any existing line
+  const checkForIntersection = (currentPoint: Point, points: Point[]): boolean => {
+    if (points.length < 3) return false; // Need at least 3 points to have 2 lines
+    
+    const lastPoint = points[points.length - 1];
+    const currentLine = { start: lastPoint, end: currentPoint };
+    
+    // Check intersection with all existing lines except the last one (would be adjacent)
+    for (let i = 0; i < points.length - 2; i++) {
+      const lineStart = points[i];
+      const lineEnd = points[i + 1];
+      
+      if (doLinesIntersect(currentLine.start, currentLine.end, lineStart, lineEnd)) {
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   // Utility function to create curved sail path with 8% inward curve at edge midpoints
